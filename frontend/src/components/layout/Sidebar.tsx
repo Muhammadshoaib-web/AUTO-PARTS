@@ -6,7 +6,7 @@ import { clsx } from 'clsx';
 import {
   LayoutDashboard, Package, Tag, Layers, ShoppingCart,
   Truck, Users, UserCircle, Receipt, BarChart3, Shield,
-  LogOut, Building2, X, Warehouse,
+  LogOut, Building2, X, Warehouse, BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api/client';
@@ -41,7 +41,10 @@ const nav = [
   },
   {
     group: 'Finance',
-    items: [{ href: '/expenses', label: 'Expenses', icon: Receipt }],
+    items: [
+      { href: '/expenses', label: 'Expenses',  icon: Receipt   },
+      { href: '/ledger',   label: 'Ledger',    icon: BookOpen  },
+    ],
   },
   {
     group: 'Administration',

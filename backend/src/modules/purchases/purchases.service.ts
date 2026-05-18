@@ -7,6 +7,7 @@ import { Purchase } from './entities/purchase.entity';
 import { PurchaseItem } from './entities/purchase-item.entity';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { StockService } from '../stock/stock.service';
+import { LedgerService } from '../ledger/ledger.service';
 import { PurchaseStatus } from '@autoparts/shared-types';
 import { generateInvoiceNumber } from '@autoparts/utils';
 
@@ -16,11 +17,12 @@ export class PurchasesService {
     @InjectRepository(Purchase) private readonly repo: Repository<Purchase>,
     @InjectRepository(PurchaseItem) private readonly itemRepo: Repository<PurchaseItem>,
     private readonly stockService: StockService,
+    private readonly ledgerService: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
   async create(dto: CreatePurchaseDto, createdById?: string): Promise<Purchase> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const items: PurchaseItem[] = dto.items.map((i) => {
         const total = i.quantity * i.unitPrice;
         return manager.create(PurchaseItem, { ...i, total });
@@ -56,6 +58,15 @@ export class PurchasesService {
         relations: ['supplier', 'items', 'items.part', 'items.location', 'createdBy'],
       }) as Promise<Purchase>;
     });
+
+    if (dto.supplierId) {
+      const unpaid = parseFloat(String(result.netTotal)) - parseFloat(String(result.paidAmount));
+      if (unpaid > 0) {
+        await this.ledgerService.recordCreditPurchase(dto.supplierId, unpaid, result.id);
+      }
+    }
+
+    return result;
   }
 
   async findAll(page = 1, limit = 20, supplierId?: string, status?: string, from?: string, to?: string) {

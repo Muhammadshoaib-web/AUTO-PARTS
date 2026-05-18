@@ -6,6 +6,7 @@ import { SaleItem } from './entities/sale-item.entity';
 import { Stock } from '../stock/entities/stock.entity';
 import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { LedgerService } from '../ledger/ledger.service';
 import { SaleStatus, StockMovementType } from '@autoparts/shared-types';
 import { generateInvoiceNumber } from '@autoparts/utils';
 
@@ -14,11 +15,12 @@ export class SalesService {
   constructor(
     @InjectRepository(Sale) private readonly saleRepo: Repository<Sale>,
     @InjectRepository(SaleItem) private readonly itemRepo: Repository<SaleItem>,
+    private readonly ledgerService: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
   async create(dto: CreateSaleDto, createdById?: string): Promise<Sale> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const items: SaleItem[] = [];
       let subtotal = 0;
 
@@ -82,6 +84,15 @@ export class SalesService {
         relations: ['customer', 'items', 'items.part', 'createdBy'],
       }) as Promise<Sale>;
     });
+
+    if (dto.customerId) {
+      const unpaid = parseFloat(String(result.netTotal)) - parseFloat(String(result.paidAmount));
+      if (unpaid > 0) {
+        await this.ledgerService.recordCreditSale(dto.customerId, unpaid, result.id);
+      }
+    }
+
+    return result;
   }
 
   async findAll(page = 1, limit = 20, from?: string, to?: string, status?: string) {
