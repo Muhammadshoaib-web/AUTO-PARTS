@@ -8,6 +8,9 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Single shared promise so concurrent 401s don't all trigger separate refresh calls
+let refreshing: Promise<void> | null = null;
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -21,7 +24,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        await useAuthStore.getState().refreshTokens();
+        if (!refreshing) {
+          refreshing = useAuthStore.getState().refreshTokens().finally(() => {
+            refreshing = null;
+          });
+        }
+        await refreshing;
         return api(original);
       } catch {
         useAuthStore.getState().logout();
