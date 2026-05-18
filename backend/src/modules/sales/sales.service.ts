@@ -19,23 +19,23 @@ export class SalesService {
 
   async create(dto: CreateSaleDto, createdById?: string): Promise<Sale> {
     return this.dataSource.transaction(async (manager) => {
-      // Validate and deduct stock for each item (FIFO from first location with enough qty)
       const items: SaleItem[] = [];
-      let total = 0;
+      let subtotal = 0;
 
       for (const itemDto of dto.items) {
         const unitPrice = itemDto.unitPrice;
         const discountPct = itemDto.discountPct ?? 0;
         const lineTotal = itemDto.quantity * unitPrice * (1 - discountPct / 100);
-        total += lineTotal;
+        subtotal += lineTotal;
 
-        // Find stock with sufficient quantity
         const stock = await manager.findOne(Stock, {
           where: { partId: itemDto.partId },
           order: { quantity: 'DESC' },
         });
         if (!stock || stock.quantity < itemDto.quantity) {
-          throw new UnprocessableEntityException(`Insufficient stock for part ${itemDto.partId}`);
+          throw new UnprocessableEntityException(
+            `Insufficient stock for part ${itemDto.partId}. Available: ${stock?.quantity ?? 0}`,
+          );
         }
         stock.quantity -= itemDto.quantity;
         await manager.save(stock);
@@ -55,33 +55,97 @@ export class SalesService {
 
       const discount = dto.discount ?? 0;
       const tax = dto.tax ?? 0;
-      const netTotal = total - discount + tax;
+      const netTotal = subtotal - discount + tax;
+      const paidAmount = dto.paidAmount ?? netTotal;
+      const changeAmount = Math.max(0, paidAmount - netTotal);
       const invoiceNo = generateInvoiceNumber('INV');
 
       const sale = await manager.save(
         manager.create(Sale, {
-          ...dto,
+          customerId: dto.customerId,
+          paymentMethod: dto.paymentMethod,
           invoiceNo,
           date: new Date(),
-          total,
+          total: subtotal,
+          discount,
+          tax,
           netTotal,
+          paidAmount,
+          changeAmount,
           items,
           createdById,
           status: SaleStatus.COMPLETED,
         }),
       );
-      return sale;
+      return manager.findOne(Sale, {
+        where: { id: sale.id },
+        relations: ['customer', 'items', 'items.part', 'createdBy'],
+      }) as Promise<Sale>;
     });
   }
 
-  findAll(): Promise<Sale[]> {
-    return this.saleRepo.find({ relations: ['customer', 'items', 'items.part', 'createdBy'], order: { createdAt: 'DESC' }, take: 100 });
+  async findAll(page = 1, limit = 20, from?: string, to?: string, status?: string) {
+    const qb = this.saleRepo
+      .createQueryBuilder('sale')
+      .leftJoinAndSelect('sale.customer', 'customer')
+      .leftJoinAndSelect('sale.items', 'items')
+      .leftJoinAndSelect('items.part', 'part')
+      .leftJoinAndSelect('sale.createdBy', 'createdBy')
+      .orderBy('sale.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (from) qb.andWhere('DATE(sale.createdAt) >= :from', { from });
+    if (to) qb.andWhere('DATE(sale.createdAt) <= :to', { to });
+    if (status) qb.andWhere('sale.status = :status', { status });
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
   async findOne(id: string): Promise<Sale> {
-    const s = await this.saleRepo.findOne({ where: { id }, relations: ['customer', 'items', 'items.part', 'createdBy'] });
+    const s = await this.saleRepo.findOne({
+      where: { id },
+      relations: ['customer', 'items', 'items.part', 'createdBy'],
+    });
     if (!s) throw new NotFoundException(`Sale ${id} not found.`);
     return s;
+  }
+
+  async cancel(id: string): Promise<Sale> {
+    return this.dataSource.transaction(async (manager) => {
+      const sale = await manager.findOne(Sale, { where: { id }, relations: ['items'] });
+      if (!sale) throw new NotFoundException(`Sale ${id} not found.`);
+      if (sale.status === SaleStatus.CANCELLED) {
+        throw new UnprocessableEntityException('Sale is already cancelled.');
+      }
+      if (sale.status === SaleStatus.REFUNDED) {
+        throw new UnprocessableEntityException('Cannot cancel a refunded sale.');
+      }
+
+      for (const item of sale.items) {
+        const stock = await manager.findOne(Stock, {
+          where: { partId: item.partId },
+          order: { quantity: 'DESC' },
+        });
+        if (stock) {
+          stock.quantity += item.quantity;
+          await manager.save(stock);
+          await manager.save(
+            manager.create(StockMovement, {
+              partId: item.partId,
+              toLocationId: stock.locationId,
+              quantity: item.quantity,
+              type: StockMovementType.RETURN,
+              notes: `Cancelled sale ${sale.invoiceNo}`,
+            }),
+          );
+        }
+      }
+
+      sale.status = SaleStatus.CANCELLED;
+      return manager.save(sale);
+    });
   }
 
   async getDailySummary(): Promise<{ total: number; count: number }> {

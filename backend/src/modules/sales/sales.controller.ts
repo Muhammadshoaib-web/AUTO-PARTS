@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
@@ -17,8 +17,16 @@ export class SalesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List sales' })
-  findAll() { return this.svc.findAll(); }
+  @ApiOperation({ summary: 'List sales (paginated)' })
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.svc.findAll(page ? +page : 1, limit ? +limit : 20, from, to, status);
+  }
 
   @Get('daily-summary')
   @ApiOperation({ summary: "Today's revenue summary" })
@@ -27,4 +35,8 @@ export class SalesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get sale by ID' })
   findOne(@Param('id') id: string) { return this.svc.findOne(id); }
+
+  @Patch(':id/cancel')
+  @ApiOperation({ summary: 'Cancel a sale and restore stock' })
+  cancel(@Param('id') id: string) { return this.svc.cancel(id); }
 }
