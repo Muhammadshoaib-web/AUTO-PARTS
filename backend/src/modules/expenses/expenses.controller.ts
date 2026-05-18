@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Expenses')
@@ -9,6 +10,36 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @Controller({ path: 'expenses', version: '1' })
 export class ExpensesController {
   constructor(private readonly svc: ExpensesService) {}
-  @Post() create(@Body() dto: CreateExpenseDto, @CurrentUser() user: { id: string }) { return this.svc.create(dto, user?.id); }
-  @Get() @ApiOperation({ summary: 'List expenses' }) findAll() { return this.svc.findAll(); }
+
+  @Post()
+  @ApiOperation({ summary: 'Create expense' })
+  create(@Body() dto: CreateExpenseDto, @CurrentUser() user: { id: string }) {
+    return this.svc.create(dto, user?.id);
+  }
+
+  @Get('summary')
+  @ApiOperation({ summary: 'Monthly / yearly expense summary' })
+  summary() { return this.svc.getSummary(); }
+
+  @Get()
+  @ApiOperation({ summary: 'List expenses (paginated, filterable)' })
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('category') category?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.svc.findAll(page ? +page : 1, limit ? +limit : 20, category, from, to);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update expense' })
+  update(@Param('id') id: string, @Body() dto: UpdateExpenseDto) {
+    return this.svc.update(id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete expense' })
+  remove(@Param('id') id: string) { return this.svc.remove(id); }
 }
