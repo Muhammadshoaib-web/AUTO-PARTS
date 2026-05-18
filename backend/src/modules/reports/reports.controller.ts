@@ -8,19 +8,33 @@ import { ReportsService } from './reports.service';
 export class ReportsController {
   constructor(private readonly svc: ReportsService) {}
 
-  @Get('sales')
-  @ApiOperation({ summary: 'Sales report for date range' })
-  sales(@Query('from') from: string, @Query('to') to: string) {
-    return this.svc.salesReport(new Date(from), new Date(to));
+  @Get('overview')
+  @ApiOperation({ summary: 'Business KPI overview (today / month / year)' })
+  overview() { return this.svc.getOverview(); }
+
+  @Get('sales-trend')
+  @ApiOperation({ summary: 'Daily sales trend for a date range' })
+  salesTrend(@Query('from') from: string, @Query('to') to: string) {
+    return this.svc.getSalesTrend(from, to);
+  }
+
+  @Get('profit-loss')
+  @ApiOperation({ summary: 'P&L statement for a date range' })
+  profitLoss(@Query('from') from: string, @Query('to') to: string) {
+    return this.svc.getProfitLoss(from, to);
   }
 
   @Get('stock-valuation')
   @ApiOperation({ summary: 'Current stock valuation at cost and retail' })
-  stockValuation() { return this.svc.stockValuation(); }
+  stockValuation() { return this.svc.getStockValuation(); }
 
-  @Get('top-selling')
-  @ApiOperation({ summary: 'Top selling parts by quantity' })
-  topSelling(@Query('from') from: string, @Query('to') to: string, @Query('limit') limit?: string) {
-    return this.svc.topSellingParts(new Date(from), new Date(to), limit ? parseInt(limit, 10) : 10);
+  @Get('top-parts')
+  @ApiOperation({ summary: 'Top selling parts by revenue' })
+  topParts(
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.svc.getTopParts(from, to, limit ? parseInt(limit, 10) : 10);
   }
 }
