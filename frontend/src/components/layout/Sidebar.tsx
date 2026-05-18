@@ -6,7 +6,7 @@ import { clsx } from 'clsx';
 import {
   LayoutDashboard, Package, Tag, Layers, ShoppingCart,
   Truck, Users, UserCircle, Receipt, BarChart3, Shield,
-  LogOut, Building2, X,
+  LogOut, Building2, X, Warehouse,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api/client';
@@ -21,7 +21,8 @@ const nav = [
     items: [
       { href: '/parts', label: 'Parts', icon: Package },
       { href: '/categories', label: 'Categories', icon: Tag },
-      { href: '/stock', label: 'Stock', icon: Layers },
+      { href: '/stock', label: 'Stock Levels', icon: Layers },
+      { href: '/locations', label: 'Locations', icon: Warehouse },
     ],
   },
   {

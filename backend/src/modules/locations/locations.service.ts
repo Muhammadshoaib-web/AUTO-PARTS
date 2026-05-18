@@ -11,7 +11,13 @@ export class LocationsService {
 
   create(dto: CreateLocationDto): Promise<Location> { return this.repo.save(this.repo.create(dto)); }
 
-  findAll(): Promise<Location[]> { return this.repo.find({ where: { isActive: true }, relations: ['children'] }); }
+  findAll(): Promise<Location[]> {
+    return this.repo.find({
+      where: { isActive: true },
+      relations: ['parent', 'children'],
+      order: { name: 'ASC' },
+    });
+  }
 
   async findOne(id: string): Promise<Location> {
     const loc = await this.repo.findOne({ where: { id }, relations: ['parent', 'children'] });
@@ -25,9 +31,10 @@ export class LocationsService {
     return this.repo.save(loc);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string): Promise<{ message: string }> {
     const loc = await this.findOne(id);
     loc.isActive = false;
     await this.repo.save(loc);
+    return { message: `Location "${loc.name}" deleted.` };
   }
 }
