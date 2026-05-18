@@ -12,8 +12,32 @@ export class AuditController {
   constructor(private readonly svc: AuditService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get audit log trail (admin only)' })
-  findAll(@Query('resourceType') resourceType?: string) {
-    return this.svc.findAll(resourceType);
+  @ApiOperation({ summary: 'Get audit log trail with pagination and filters' })
+  findAll(
+    @Query('q')            q?: string,
+    @Query('userId')       userId?: string,
+    @Query('action')       action?: string,
+    @Query('resourceType') resourceType?: string,
+    @Query('from')         from?: string,
+    @Query('to')           to?: string,
+    @Query('page')         page?: string,
+    @Query('limit')        limit?: string,
+  ) {
+    return this.svc.findAll({
+      q,
+      userId,
+      action,
+      resourceType,
+      from,
+      to,
+      page:  page  ? +page  : 1,
+      limit: limit ? +limit : 50,
+    });
+  }
+
+  @Get('meta')
+  @ApiOperation({ summary: 'Distinct action and resourceType values for filter dropdowns' })
+  getDistinctValues() {
+    return this.svc.getDistinctValues();
   }
 }

@@ -21,8 +21,60 @@ export class AuditService {
     return this.repo.save(this.repo.create(dto));
   }
 
-  findAll(resourceType?: string): Promise<AuditLog[]> {
-    const where = resourceType ? { resourceType } : {};
-    return this.repo.find({ where, order: { createdAt: 'DESC' }, take: 500, relations: ['user'] });
+  async findAll(opts: {
+    q?: string;
+    userId?: string;
+    action?: string;
+    resourceType?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { q, userId, action, resourceType, from, to, page = 1, limit = 50 } = opts;
+
+    const qb = this.repo
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.user', 'user')
+      .orderBy('a.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (userId)       qb.andWhere('a.userId = :userId',             { userId });
+    if (action)       qb.andWhere('a.action = :action',             { action });
+    if (resourceType) qb.andWhere('a.resourceType = :resourceType', { resourceType });
+    if (from)         qb.andWhere('a.createdAt >= :from',           { from: new Date(from) });
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      qb.andWhere('a.createdAt <= :to', { to: toDate });
+    }
+    if (q) {
+      qb.andWhere('(user.name ILIKE :q OR user.email ILIKE :q OR a.action ILIKE :q OR a.resourceType ILIKE :q)', {
+        q: `%${q}%`,
+      });
+    }
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async getDistinctValues() {
+    const [actions, resourceTypes] = await Promise.all([
+      this.repo
+        .createQueryBuilder('a')
+        .select('DISTINCT a.action', 'action')
+        .orderBy('a.action')
+        .getRawMany<{ action: string }>(),
+      this.repo
+        .createQueryBuilder('a')
+        .select('DISTINCT a.resourceType', 'resourceType')
+        .orderBy('a.resourceType')
+        .getRawMany<{ resourceType: string }>(),
+    ]);
+    return {
+      actions: actions.map((r) => r.action),
+      resourceTypes: resourceTypes.map((r) => r.resourceType),
+    };
   }
 }
