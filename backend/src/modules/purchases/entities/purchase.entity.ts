@@ -1,0 +1,77 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { PurchaseStatus, PaymentMethod } from '@autoparts/shared-types';
+import { Supplier } from '../../suppliers/entities/supplier.entity';
+import { User } from '../../users/entities/user.entity';
+import { PurchaseItem } from './purchase-item.entity';
+
+@Entity('purchases')
+@Index(['supplierId'])
+@Index(['createdAt'])
+@Index(['status'])
+export class Purchase {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'uuid' })
+  supplierId: string;
+
+  @ManyToOne(() => Supplier, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'supplierId' })
+  supplier: Supplier;
+
+  @Column({ type: 'varchar', length: 100, unique: true })
+  invoiceNo: string;
+
+  @Column({ type: 'date' })
+  date: Date;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  total: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  discount: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  tax: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  netTotal: number;
+
+  @Column({ type: 'enum', enum: PaymentMethod, default: PaymentMethod.CASH })
+  paymentMethod: PaymentMethod;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  paidAmount: number;
+
+  @Column({ type: 'text', nullable: true })
+  notes: string | null;
+
+  @Column({ type: 'enum', enum: PurchaseStatus, default: PurchaseStatus.PENDING })
+  status: PurchaseStatus;
+
+  @Column({ nullable: true, type: 'uuid' })
+  createdById: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'createdById' })
+  createdBy: User | null;
+
+  @OneToMany(() => PurchaseItem, (item) => item.purchase, { cascade: true })
+  items: PurchaseItem[];
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updatedAt: Date;
+}

@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "strictPropertyInitialization": false,
+    "paths": {
+      "@autoparts/shared-types": ["../packages/shared-types/src"],
+      "@autoparts/shared-types/*": ["../packages/shared-types/src/*"],
+      "@autoparts/utils": ["../packages/utils/src"],
+      "@autoparts/utils/*": ["../packages/utils/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

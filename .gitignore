@@ -1,0 +1,52 @@
+# Environment
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+build/
+out/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+
+# Uploads & generated files
+uploads/
+.turbo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# TypeORM migrations (generated)
+# Comment this out if you want to commit migrations
+# apps/api/src/database/migrations/*.js
+
+# PM2
+ecosystem.config.js.bak
+
+# Temporary
+*.tmp
+*.temp
