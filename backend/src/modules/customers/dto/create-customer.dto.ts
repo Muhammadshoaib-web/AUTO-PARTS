@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateCustomerDto {
@@ -8,6 +9,6 @@ export class CreateCustomerDto {
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() ntn?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() cnic?: string;
-  @ApiPropertyOptional({ default: 0 }) @IsOptional() @IsNumber() @Min(0) discountSlab?: number;
-  @ApiPropertyOptional({ default: 0 }) @IsOptional() @IsNumber() @Min(0) creditLimit?: number;
+  @ApiPropertyOptional({ default: 0 }) @IsOptional() @Type(() => Number) @IsNumber() @Min(0) discountSlab?: number;
+  @ApiPropertyOptional({ default: 0 }) @IsOptional() @Type(() => Number) @IsNumber() @Min(0) creditLimit?: number;
 }

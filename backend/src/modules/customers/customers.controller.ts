@@ -10,7 +10,13 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export class CustomersController {
   constructor(private readonly svc: CustomersService) {}
   @Post() create(@Body() dto: CreateCustomerDto) { return this.svc.create(dto); }
-  @Get() findAll(@Query('q') q?: string) { return this.svc.findAll(q); }
+  @Get() findAll(
+    @Query('q') q?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.svc.findAll(q, page ? +page : 1, limit ? +limit : 20);
+  }
   @Get(':id') findOne(@Param('id') id: string) { return this.svc.findOne(id); }
   @Patch(':id') update(@Param('id') id: string, @Body() dto: UpdateCustomerDto) { return this.svc.update(id, dto); }
   @Delete(':id') remove(@Param('id') id: string) { return this.svc.remove(id); }
