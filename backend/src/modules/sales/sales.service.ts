@@ -19,7 +19,7 @@ export class SalesService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(dto: CreateSaleDto, createdById?: string): Promise<Sale> {
+  async create(dto: CreateSaleDto, createdById?: string, shopId?: string | null, branchId?: string | null): Promise<Sale> {
     const result = await this.dataSource.transaction(async (manager) => {
       const items: SaleItem[] = [];
       let subtotal = 0;
@@ -48,6 +48,7 @@ export class SalesService {
             fromLocationId: stock.locationId,
             quantity: itemDto.quantity,
             type: StockMovementType.OUT,
+            shopId: shopId ?? null,
             createdById,
           }),
         );
@@ -76,6 +77,8 @@ export class SalesService {
           changeAmount,
           items,
           createdById,
+          shopId: shopId ?? null,
+          branchId: branchId ?? null,
           status: SaleStatus.COMPLETED,
         }),
       );
@@ -95,7 +98,7 @@ export class SalesService {
     return result;
   }
 
-  async findAll(page = 1, limit = 20, from?: string, to?: string, status?: string) {
+  async findAll(shopId?: string | null, page = 1, limit = 20, from?: string, to?: string, status?: string, branchId?: string) {
     const qb = this.saleRepo
       .createQueryBuilder('sale')
       .leftJoinAndSelect('sale.customer', 'customer')
@@ -106,9 +109,11 @@ export class SalesService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('sale.shopId = :shopId', { shopId });
     if (from) qb.andWhere('DATE(sale.createdAt) >= :from', { from });
     if (to) qb.andWhere('DATE(sale.createdAt) <= :to', { to });
     if (status) qb.andWhere('sale.status = :status', { status });
+    if (branchId) qb.andWhere('sale.branchId = :branchId', { branchId });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
@@ -148,6 +153,7 @@ export class SalesService {
               toLocationId: stock.locationId,
               quantity: item.quantity,
               type: StockMovementType.RETURN,
+              shopId: sale.shopId,
               notes: `Cancelled sale ${sale.invoiceNo}`,
             }),
           );
@@ -159,15 +165,18 @@ export class SalesService {
     });
   }
 
-  async getDailySummary(): Promise<{ total: number; count: number }> {
+  async getDailySummary(shopId?: string | null): Promise<{ total: number; count: number }> {
     const today = new Date().toISOString().slice(0, 10);
-    const result = await this.saleRepo
+    const qb = this.saleRepo
       .createQueryBuilder('sale')
       .select('COALESCE(SUM(sale.netTotal), 0)', 'total')
       .addSelect('COUNT(*)', 'count')
       .where('DATE(sale.createdAt) = :today', { today })
-      .andWhere('sale.status = :status', { status: SaleStatus.COMPLETED })
-      .getRawOne<{ total: string; count: string }>();
+      .andWhere('sale.status = :status', { status: SaleStatus.COMPLETED });
+
+    if (shopId) qb.andWhere('sale.shopId = :shopId', { shopId });
+
+    const result = await qb.getRawOne<{ total: string; count: string }>();
     return { total: parseFloat(result?.total ?? '0'), count: parseInt(result?.count ?? '0', 10) };
   }
 }

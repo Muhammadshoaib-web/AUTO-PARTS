@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '@autoparts/shared-types';
 import { LedgerEntityType } from '@autoparts/shared-types';
 import { LedgerService } from './ledger.service';
@@ -17,28 +18,30 @@ export class LedgerController {
 
   @Get('summary')
   @ApiOperation({ summary: 'Total payables, receivables and net position' })
-  getSummary() {
-    return this.svc.getSummary();
+  getSummary(@CurrentUser() user: any) {
+    return this.svc.getSummary(user?.shopId);
   }
 
   @Get('suppliers')
   @ApiOperation({ summary: 'Suppliers with outstanding balance (payables)' })
   getSuppliers(
+    @CurrentUser() user: any,
     @Query('q')     q?: string,
     @Query('page')  page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.svc.getSuppliers(q, page ? +page : 1, limit ? +limit : 30);
+    return this.svc.getSuppliers(user?.shopId, q, page ? +page : 1, limit ? +limit : 30);
   }
 
   @Get('customers')
   @ApiOperation({ summary: 'Customers with outstanding balance (receivables)' })
   getCustomers(
+    @CurrentUser() user: any,
     @Query('q')     q?: string,
     @Query('page')  page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.svc.getCustomers(q, page ? +page : 1, limit ? +limit : 30);
+    return this.svc.getCustomers(user?.shopId, q, page ? +page : 1, limit ? +limit : 30);
   }
 
   @Get('suppliers/:id/entries')

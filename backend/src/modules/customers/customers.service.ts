@@ -9,9 +9,11 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export class CustomersService {
   constructor(@InjectRepository(Customer) private readonly repo: Repository<Customer>) {}
 
-  create(dto: CreateCustomerDto): Promise<Customer> { return this.repo.save(this.repo.create(dto)); }
+  create(dto: CreateCustomerDto, shopId?: string | null): Promise<Customer> {
+    return this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null }));
+  }
 
-  async findAll(q?: string, page = 1, limit = 20) {
+  async findAll(shopId?: string | null, q?: string, page = 1, limit = 20) {
     const qb = this.repo
       .createQueryBuilder('c')
       .where('c.isActive = true')
@@ -19,6 +21,7 @@ export class CustomersService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('c.shopId = :shopId', { shopId });
     if (q) {
       qb.andWhere(
         '(c.name ILIKE :q OR c.phone ILIKE :q OR c.email ILIKE :q OR c.cnic ILIKE :q OR c.ntn ILIKE :q)',
@@ -30,20 +33,20 @@ export class CustomersService {
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string): Promise<Customer> {
-    const c = await this.repo.findOne({ where: { id } });
+  async findOne(id: string, shopId?: string | null): Promise<Customer> {
+    const c = await this.repo.findOne({ where: { id, ...(shopId ? { shopId } : {}) } });
     if (!c) throw new NotFoundException(`Customer ${id} not found.`);
     return c;
   }
 
-  async update(id: string, dto: UpdateCustomerDto): Promise<Customer> {
-    const c = await this.findOne(id);
+  async update(id: string, dto: UpdateCustomerDto, shopId?: string | null): Promise<Customer> {
+    const c = await this.findOne(id, shopId);
     Object.assign(c, dto);
     return this.repo.save(c);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    const c = await this.findOne(id);
+  async remove(id: string, shopId?: string | null): Promise<{ message: string }> {
+    const c = await this.findOne(id, shopId);
     c.isActive = false;
     await this.repo.save(c);
     return { message: `Customer "${c.name}" deleted.` };

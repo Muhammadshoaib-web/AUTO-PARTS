@@ -13,14 +13,14 @@ export class CategoriesService {
     private readonly repo: Repository<Category>,
   ) {}
 
-  async create(dto: CreateCategoryDto): Promise<Category> {
+  async create(dto: CreateCategoryDto, shopId?: string | null): Promise<Category> {
     const slug = slugify(dto.nameEn);
-    const existing = await this.repo.findOne({ where: { slug } });
+    const existing = await this.repo.findOne({ where: { slug, ...(shopId ? { shopId } : {}) } });
     if (existing) throw new ConflictException(`Category with slug "${slug}" already exists.`);
-    return this.repo.save(this.repo.create({ ...dto, slug }));
+    return this.repo.save(this.repo.create({ ...dto, slug, shopId: shopId ?? null }));
   }
 
-  findAll(search?: string): Promise<Category[]> {
+  findAll(shopId?: string | null, search?: string): Promise<Category[]> {
     const qb = this.repo
       .createQueryBuilder('cat')
       .leftJoinAndSelect('cat.parent', 'parent')
@@ -28,6 +28,7 @@ export class CategoriesService {
       .where('cat.isActive = true')
       .orderBy('cat.nameEn', 'ASC');
 
+    if (shopId) qb.andWhere('cat.shopId = :shopId', { shopId });
     if (search) {
       qb.andWhere('(cat."nameEn" ILIKE :q OR cat."nameUr" ILIKE :q)', { q: `%${search}%` });
     }
@@ -35,20 +36,20 @@ export class CategoriesService {
     return qb.getMany();
   }
 
-  async findOne(id: string): Promise<Category> {
+  async findOne(id: string, shopId?: string | null): Promise<Category> {
     const cat = await this.repo.findOne({
-      where: { id },
+      where: { id, ...(shopId ? { shopId } : {}) },
       relations: ['parent', 'children'],
     });
     if (!cat) throw new NotFoundException(`Category ${id} not found.`);
     return cat;
   }
 
-  async update(id: string, dto: UpdateCategoryDto): Promise<Category> {
-    const cat = await this.findOne(id);
+  async update(id: string, dto: UpdateCategoryDto, shopId?: string | null): Promise<Category> {
+    const cat = await this.findOne(id, shopId);
     if (dto.nameEn && dto.nameEn !== cat.nameEn) {
       const newSlug = slugify(dto.nameEn);
-      const conflict = await this.repo.findOne({ where: { slug: newSlug } });
+      const conflict = await this.repo.findOne({ where: { slug: newSlug, ...(shopId ? { shopId } : {}) } });
       if (conflict && conflict.id !== id)
         throw new ConflictException(`Slug "${newSlug}" is already in use.`);
       cat.slug = newSlug;
@@ -57,8 +58,8 @@ export class CategoriesService {
     return this.repo.save(cat);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    const cat = await this.findOne(id);
+  async remove(id: string, shopId?: string | null): Promise<{ message: string }> {
+    const cat = await this.findOne(id, shopId);
     cat.isActive = false;
     await this.repo.save(cat);
     return { message: `Category "${cat.nameEn}" deleted.` };

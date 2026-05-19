@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { StockMovementType } from '@autoparts/shared-types';
+import { Shop } from '../../shops/entities/shop.entity';
 import { Part } from '../../parts/entities/part.entity';
 import { Location } from '../../locations/entities/location.entity';
 import { User } from '../../users/entities/user.entity';
@@ -18,6 +19,13 @@ import { User } from '../../users/entities/user.entity';
 export class StockMovement {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ type: 'uuid' })
   partId: string;

@@ -5,6 +5,7 @@ import { AuditLog } from './entities/audit-log.entity';
 
 export interface CreateAuditDto {
   userId?: string;
+  shopId?: string | null;
   action: string;
   resourceType: string;
   resourceId?: string;
@@ -22,6 +23,7 @@ export class AuditService {
   }
 
   async findAll(opts: {
+    shopId?: string | null;
     q?: string;
     userId?: string;
     action?: string;
@@ -31,7 +33,7 @@ export class AuditService {
     page?: number;
     limit?: number;
   }) {
-    const { q, userId, action, resourceType, from, to, page = 1, limit = 50 } = opts;
+    const { shopId, q, userId, action, resourceType, from, to, page = 1, limit = 50 } = opts;
 
     const qb = this.repo
       .createQueryBuilder('a')
@@ -40,6 +42,7 @@ export class AuditService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('a.shopId = :shopId', { shopId });
     if (userId)       qb.andWhere('a.userId = :userId',             { userId });
     if (action)       qb.andWhere('a.action = :action',             { action });
     if (resourceType) qb.andWhere('a.resourceType = :resourceType', { resourceType });
@@ -59,18 +62,22 @@ export class AuditService {
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async getDistinctValues() {
+  async getDistinctValues(shopId?: string | null) {
+    const actionsQb = this.repo
+      .createQueryBuilder('a')
+      .select('DISTINCT a.action', 'action')
+      .orderBy('a.action');
+    if (shopId) actionsQb.andWhere('a.shopId = :shopId', { shopId });
+
+    const resourceTypesQb = this.repo
+      .createQueryBuilder('a')
+      .select('DISTINCT a.resourceType', 'resourceType')
+      .orderBy('a.resourceType');
+    if (shopId) resourceTypesQb.andWhere('a.shopId = :shopId', { shopId });
+
     const [actions, resourceTypes] = await Promise.all([
-      this.repo
-        .createQueryBuilder('a')
-        .select('DISTINCT a.action', 'action')
-        .orderBy('a.action')
-        .getRawMany<{ action: string }>(),
-      this.repo
-        .createQueryBuilder('a')
-        .select('DISTINCT a.resourceType', 'resourceType')
-        .orderBy('a.resourceType')
-        .getRawMany<{ resourceType: string }>(),
+      actionsQb.getRawMany<{ action: string }>(),
+      resourceTypesQb.getRawMany<{ resourceType: string }>(),
     ]);
     return {
       actions: actions.map((r) => r.action),

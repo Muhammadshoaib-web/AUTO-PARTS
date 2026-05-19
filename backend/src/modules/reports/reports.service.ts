@@ -18,55 +18,68 @@ export class ReportsService {
     @InjectRepository(Stock)    private readonly stockRepo: Repository<Stock>,
   ) {}
 
-  // ── Overview (single call for the dashboard) ────────────────────────────
-
-  async getOverview() {
+  async getOverview(shopId?: string | null, branchId?: string) {
     const now  = new Date();
     const today      = now.toISOString().slice(0, 10);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const yearStart  = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
 
+    const todayQb = this.saleRepo.createQueryBuilder('s')
+      .select('COALESCE(SUM(s.netTotal),0)', 'revenue').addSelect('COUNT(*)', 'count')
+      .where('DATE(s.createdAt) = :d', { d: today })
+      .andWhere('s.status = :st', { st: SaleStatus.COMPLETED });
+    if (shopId) todayQb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) todayQb.andWhere('s.branchId = :branchId', { branchId });
+
+    const monthQb = this.saleRepo.createQueryBuilder('s')
+      .select('COALESCE(SUM(s.netTotal),0)', 'revenue').addSelect('COUNT(*)', 'count')
+      .where('DATE(s.createdAt) BETWEEN :from AND :to', { from: monthStart, to: today })
+      .andWhere('s.status = :st', { st: SaleStatus.COMPLETED });
+    if (shopId) monthQb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) monthQb.andWhere('s.branchId = :branchId', { branchId });
+
+    const yearQb = this.saleRepo.createQueryBuilder('s')
+      .select('COALESCE(SUM(s.netTotal),0)', 'revenue').addSelect('COUNT(*)', 'count')
+      .where('DATE(s.createdAt) BETWEEN :from AND :to', { from: yearStart, to: today })
+      .andWhere('s.status = :st', { st: SaleStatus.COMPLETED });
+    if (shopId) yearQb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) yearQb.andWhere('s.branchId = :branchId', { branchId });
+
+    const expQb = this.expenseRepo.createQueryBuilder('e')
+      .select('COALESCE(SUM(e.amount),0)', 'total')
+      .where('e.date BETWEEN :from AND :to', { from: monthStart, to: today });
+    if (shopId) expQb.andWhere('e.shopId = :shopId', { shopId });
+    if (branchId) expQb.andWhere('e.branchId = :branchId', { branchId });
+
+    const purQb = this.purchaseRepo.createQueryBuilder('p')
+      .select('COALESCE(SUM(p.netTotal),0)', 'total')
+      .where('DATE(p.createdAt) BETWEEN :from AND :to', { from: monthStart, to: today })
+      .andWhere('p.status != :st', { st: PurchaseStatus.CANCELLED });
+    if (shopId) purQb.andWhere('p.shopId = :shopId', { shopId });
+    if (branchId) purQb.andWhere('p.branchId = :branchId', { branchId });
+
+    const lowStockQb = this.stockRepo.createQueryBuilder('s')
+      .leftJoin('s.part', 'part')
+      .where('s.quantity > 0').andWhere('s.quantity <= part.minStock');
+    if (shopId) lowStockQb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) lowStockQb.leftJoin('s.location', 'loc').andWhere('loc.branchId = :branchId', { branchId });
+
+    const stockValQb = this.stockRepo.createQueryBuilder('s')
+      .leftJoin('s.part', 'part')
+      .select('COALESCE(SUM(CAST(s.quantity AS DECIMAL) * CAST(part.buyPrice AS DECIMAL)),0)', 'costValue')
+      .addSelect('COALESCE(SUM(CAST(s.quantity AS DECIMAL) * CAST(part.sellPrice AS DECIMAL)),0)', 'retailValue')
+      .where('s.quantity > 0');
+    if (shopId) stockValQb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) stockValQb.leftJoin('s.location', 'loc').andWhere('loc.branchId = :branchId', { branchId });
+
     const [todayRow, monthRow, yearRow, expRow, purRow, lowStock, stockVal] = await Promise.all([
-      this.saleRepo.createQueryBuilder('s')
-        .select('COALESCE(SUM(s.netTotal),0)', 'revenue').addSelect('COUNT(*)', 'count')
-        .where('DATE(s.createdAt) = :d', { d: today })
-        .andWhere('s.status = :st', { st: SaleStatus.COMPLETED })
-        .getRawOne<{ revenue: string; count: string }>(),
-
-      this.saleRepo.createQueryBuilder('s')
-        .select('COALESCE(SUM(s.netTotal),0)', 'revenue').addSelect('COUNT(*)', 'count')
-        .where('DATE(s.createdAt) BETWEEN :from AND :to', { from: monthStart, to: today })
-        .andWhere('s.status = :st', { st: SaleStatus.COMPLETED })
-        .getRawOne<{ revenue: string; count: string }>(),
-
-      this.saleRepo.createQueryBuilder('s')
-        .select('COALESCE(SUM(s.netTotal),0)', 'revenue').addSelect('COUNT(*)', 'count')
-        .where('DATE(s.createdAt) BETWEEN :from AND :to', { from: yearStart, to: today })
-        .andWhere('s.status = :st', { st: SaleStatus.COMPLETED })
-        .getRawOne<{ revenue: string; count: string }>(),
-
-      this.expenseRepo.createQueryBuilder('e')
-        .select('COALESCE(SUM(e.amount),0)', 'total')
-        .where('e.date BETWEEN :from AND :to', { from: monthStart, to: today })
-        .getRawOne<{ total: string }>(),
-
-      this.purchaseRepo.createQueryBuilder('p')
-        .select('COALESCE(SUM(p.netTotal),0)', 'total')
-        .where('DATE(p.createdAt) BETWEEN :from AND :to', { from: monthStart, to: today })
-        .andWhere('p.status != :st', { st: PurchaseStatus.CANCELLED })
-        .getRawOne<{ total: string }>(),
-
-      this.stockRepo.createQueryBuilder('s')
-        .leftJoin('s.part', 'part')
-        .where('s.quantity > 0').andWhere('s.quantity <= part.minStock')
-        .getCount(),
-
-      this.stockRepo.createQueryBuilder('s')
-        .leftJoin('s.part', 'part')
-        .select('COALESCE(SUM(CAST(s.quantity AS DECIMAL) * CAST(part.buyPrice AS DECIMAL)),0)', 'costValue')
-        .addSelect('COALESCE(SUM(CAST(s.quantity AS DECIMAL) * CAST(part.sellPrice AS DECIMAL)),0)', 'retailValue')
-        .where('s.quantity > 0')
-        .getRawOne<{ costValue: string; retailValue: string }>(),
+      todayQb.getRawOne<{ revenue: string; count: string }>(),
+      monthQb.getRawOne<{ revenue: string; count: string }>(),
+      yearQb.getRawOne<{ revenue: string; count: string }>(),
+      expQb.getRawOne<{ total: string }>(),
+      purQb.getRawOne<{ total: string }>(),
+      lowStockQb.getCount(),
+      stockValQb.getRawOne<{ costValue: string; retailValue: string }>(),
     ]);
 
     const monthRevenue  = parseFloat(monthRow?.revenue  ?? '0');
@@ -87,10 +100,8 @@ export class ReportsService {
     };
   }
 
-  // ── Daily sales trend ───────────────────────────────────────────────────
-
-  async getSalesTrend(from: string, to: string) {
-    const rows = await this.saleRepo
+  async getSalesTrend(from: string, to: string, shopId?: string | null, branchId?: string) {
+    const qb = this.saleRepo
       .createQueryBuilder('s')
       .select('DATE(s.createdAt)', 'date')
       .addSelect('COALESCE(SUM(s.netTotal),0)', 'revenue')
@@ -98,8 +109,10 @@ export class ReportsService {
       .where('DATE(s.createdAt) BETWEEN :from AND :to', { from, to })
       .andWhere('s.status = :st', { st: SaleStatus.COMPLETED })
       .groupBy('DATE(s.createdAt)')
-      .orderBy('date', 'ASC')
-      .getRawMany<{ date: string; revenue: string; orders: string }>();
+      .orderBy('date', 'ASC');
+    if (shopId) qb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) qb.andWhere('s.branchId = :branchId', { branchId });
+    const rows = await qb.getRawMany<{ date: string; revenue: string; orders: string }>();
 
     return rows.map((r) => ({
       date:    r.date,
@@ -108,29 +121,34 @@ export class ReportsService {
     }));
   }
 
-  // ── Profit & Loss ───────────────────────────────────────────────────────
+  async getProfitLoss(from: string, to: string, shopId?: string | null, branchId?: string) {
+    const saleQb = this.saleRepo.createQueryBuilder('s')
+      .select('COALESCE(SUM(s.netTotal),0)', 'revenue')
+      .where('DATE(s.createdAt) BETWEEN :from AND :to', { from, to })
+      .andWhere('s.status = :st', { st: SaleStatus.COMPLETED });
+    if (shopId) saleQb.andWhere('s.shopId = :shopId', { shopId });
+    if (branchId) saleQb.andWhere('s.branchId = :branchId', { branchId });
 
-  async getProfitLoss(from: string, to: string) {
+    const expQb = this.expenseRepo.createQueryBuilder('e')
+      .select('COALESCE(SUM(e.amount),0)', 'total')
+      .addSelect('e.category', 'category')
+      .where('e.date BETWEEN :from AND :to', { from, to })
+      .groupBy('e.category')
+      .orderBy('total', 'DESC');
+    if (shopId) expQb.andWhere('e.shopId = :shopId', { shopId });
+    if (branchId) expQb.andWhere('e.branchId = :branchId', { branchId });
+
+    const purQb = this.purchaseRepo.createQueryBuilder('p')
+      .select('COALESCE(SUM(p.netTotal),0)', 'total')
+      .where('DATE(p.createdAt) BETWEEN :from AND :to', { from, to })
+      .andWhere('p.status = :st', { st: PurchaseStatus.RECEIVED });
+    if (shopId) purQb.andWhere('p.shopId = :shopId', { shopId });
+    if (branchId) purQb.andWhere('p.branchId = :branchId', { branchId });
+
     const [salesRow, expRow, purRow] = await Promise.all([
-      this.saleRepo.createQueryBuilder('s')
-        .select('COALESCE(SUM(s.netTotal),0)', 'revenue')
-        .where('DATE(s.createdAt) BETWEEN :from AND :to', { from, to })
-        .andWhere('s.status = :st', { st: SaleStatus.COMPLETED })
-        .getRawOne<{ revenue: string }>(),
-
-      this.expenseRepo.createQueryBuilder('e')
-        .select('COALESCE(SUM(e.amount),0)', 'total')
-        .addSelect('e.category', 'category')
-        .where('e.date BETWEEN :from AND :to', { from, to })
-        .groupBy('e.category')
-        .orderBy('total', 'DESC')
-        .getRawMany<{ total: string; category: string }>(),
-
-      this.purchaseRepo.createQueryBuilder('p')
-        .select('COALESCE(SUM(p.netTotal),0)', 'total')
-        .where('DATE(p.createdAt) BETWEEN :from AND :to', { from, to })
-        .andWhere('p.status = :st', { st: PurchaseStatus.RECEIVED })
-        .getRawOne<{ total: string }>(),
+      saleQb.getRawOne<{ revenue: string }>(),
+      expQb.getRawMany<{ total: string; category: string }>(),
+      purQb.getRawOne<{ total: string }>(),
     ]);
 
     const revenue  = parseFloat(salesRow?.revenue ?? '0');
@@ -149,10 +167,8 @@ export class ReportsService {
     };
   }
 
-  // ── Stock valuation ─────────────────────────────────────────────────────
-
-  async getStockValuation() {
-    const rows = await this.stockRepo
+  async getStockValuation(shopId?: string | null) {
+    const qb = this.stockRepo
       .createQueryBuilder('s')
       .leftJoin('s.part', 'part')
       .leftJoin('s.location', 'location')
@@ -165,12 +181,15 @@ export class ReportsService {
       .addSelect('CAST(s.quantity AS DECIMAL) * CAST(part.buyPrice AS DECIMAL)',  'costValue')
       .addSelect('CAST(s.quantity AS DECIMAL) * CAST(part.sellPrice AS DECIMAL)', 'retailValue')
       .where('s.quantity > 0')
-      .orderBy('costValue', 'DESC')
-      .getRawMany<{
-        partName: string; partNumber: string; quantity: string;
-        buyPrice: string; sellPrice: string; locationName: string;
-        costValue: string; retailValue: string;
-      }>();
+      .orderBy('costValue', 'DESC');
+
+    if (shopId) qb.andWhere('s.shopId = :shopId', { shopId });
+
+    const rows = await qb.getRawMany<{
+      partName: string; partNumber: string; quantity: string;
+      buyPrice: string; sellPrice: string; locationName: string;
+      costValue: string; retailValue: string;
+    }>();
 
     const items = rows.map((r) => ({
       partName:     r.partName,
@@ -189,10 +208,8 @@ export class ReportsService {
     return { items, totalCost, totalRetail, potentialMargin: totalRetail - totalCost };
   }
 
-  // ── Top selling parts ────────────────────────────────────────────────────
-
-  async getTopParts(from: string, to: string, limit = 10) {
-    const rows = await this.saleItemRepo
+  async getTopParts(from: string, to: string, shopId?: string | null, limit = 10, branchId?: string) {
+    const qb = this.saleItemRepo
       .createQueryBuilder('si')
       .leftJoin('si.sale', 'sale')
       .leftJoin('si.part', 'part')
@@ -206,8 +223,10 @@ export class ReportsService {
       .addGroupBy('part.nameEn')
       .addGroupBy('part.partNumber')
       .orderBy('totalRevenue', 'DESC')
-      .limit(limit)
-      .getRawMany<{ partName: string; partNumber: string; totalQty: string; totalRevenue: string }>();
+      .limit(limit);
+    if (shopId) qb.andWhere('sale.shopId = :shopId', { shopId });
+    if (branchId) qb.andWhere('sale.branchId = :branchId', { branchId });
+    const rows = await qb.getRawMany<{ partName: string; partNumber: string; totalQty: string; totalRevenue: string }>();
 
     return rows.map((r) => ({
       partName:     r.partName,

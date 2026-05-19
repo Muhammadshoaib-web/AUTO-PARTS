@@ -12,16 +12,24 @@ import {
 import { VehicleCompatibility } from '@autoparts/shared-types';
 import { Category } from '../../categories/entities/category.entity';
 import { Stock } from '../../stock/entities/stock.entity';
+import { Shop } from '../../shops/entities/shop.entity';
 
 @Entity('parts')
-@Index(['partNumber'], { unique: true })
-@Index(['barcode'], { unique: true, where: '"barcode" IS NOT NULL' })
+@Index(['shopId', 'partNumber'], { unique: true })
+@Index(['shopId', 'barcode'], { unique: true, where: '"barcode" IS NOT NULL AND "shopId" IS NOT NULL' })
 @Index(['isActive'])
 export class Part {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 100, unique: true })
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
+
+  @Column({ type: 'varchar', length: 100 })
   partNumber: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
@@ -61,7 +69,7 @@ export class Part {
   @Column({ type: 'jsonb', nullable: true })
   compatibilityJson: VehicleCompatibility | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   barcode: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })

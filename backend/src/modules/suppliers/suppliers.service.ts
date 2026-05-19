@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Supplier } from './entities/supplier.entity';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
@@ -9,9 +9,11 @@ import { UpdateSupplierDto } from './dto/update-supplier.dto';
 export class SuppliersService {
   constructor(@InjectRepository(Supplier) private readonly repo: Repository<Supplier>) {}
 
-  create(dto: CreateSupplierDto): Promise<Supplier> { return this.repo.save(this.repo.create(dto)); }
+  create(dto: CreateSupplierDto, shopId?: string | null): Promise<Supplier> {
+    return this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null }));
+  }
 
-  async findAll(q?: string, page = 1, limit = 20) {
+  async findAll(shopId?: string | null, q?: string, page = 1, limit = 20) {
     const qb = this.repo
       .createQueryBuilder('s')
       .where('s.isActive = true')
@@ -19,6 +21,7 @@ export class SuppliersService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('s.shopId = :shopId', { shopId });
     if (q) {
       qb.andWhere(
         '(s.name ILIKE :q OR s.phone ILIKE :q OR s.email ILIKE :q OR s.ntn ILIKE :q)',
@@ -30,20 +33,20 @@ export class SuppliersService {
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string): Promise<Supplier> {
-    const s = await this.repo.findOne({ where: { id } });
+  async findOne(id: string, shopId?: string | null): Promise<Supplier> {
+    const s = await this.repo.findOne({ where: { id, ...(shopId ? { shopId } : {}) } });
     if (!s) throw new NotFoundException(`Supplier ${id} not found.`);
     return s;
   }
 
-  async update(id: string, dto: UpdateSupplierDto): Promise<Supplier> {
-    const s = await this.findOne(id);
+  async update(id: string, dto: UpdateSupplierDto, shopId?: string | null): Promise<Supplier> {
+    const s = await this.findOne(id, shopId);
     Object.assign(s, dto);
     return this.repo.save(s);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    const s = await this.findOne(id);
+  async remove(id: string, shopId?: string | null): Promise<{ message: string }> {
+    const s = await this.findOne(id, shopId);
     s.isActive = false;
     await this.repo.save(s);
     return { message: `Supplier "${s.name}" deleted.` };

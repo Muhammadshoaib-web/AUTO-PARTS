@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@autoparts/shared-types';
 
@@ -14,6 +15,7 @@ export class AuditController {
   @Get()
   @ApiOperation({ summary: 'Get audit log trail with pagination and filters' })
   findAll(
+    @CurrentUser() user: any,
     @Query('q')            q?: string,
     @Query('userId')       userId?: string,
     @Query('action')       action?: string,
@@ -24,6 +26,7 @@ export class AuditController {
     @Query('limit')        limit?: string,
   ) {
     return this.svc.findAll({
+      shopId: user?.shopId,
       q,
       userId,
       action,
@@ -37,7 +40,7 @@ export class AuditController {
 
   @Get('meta')
   @ApiOperation({ summary: 'Distinct action and resourceType values for filter dropdowns' })
-  getDistinctValues() {
-    return this.svc.getDistinctValues();
+  getDistinctValues(@CurrentUser() user: any) {
+    return this.svc.getDistinctValues(user?.shopId);
   }
 }

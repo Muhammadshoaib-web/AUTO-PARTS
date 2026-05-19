@@ -3,9 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { LedgerEntryType, LedgerEntityType } from '@autoparts/shared-types';
+import { Shop } from '../../shops/entities/shop.entity';
 
 @Entity('ledger_entries')
 @Index(['entityType', 'entityId'])
@@ -13,6 +16,13 @@ import { LedgerEntryType, LedgerEntityType } from '@autoparts/shared-types';
 export class LedgerEntry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ type: 'enum', enum: LedgerEntityType })
   entityType: LedgerEntityType;

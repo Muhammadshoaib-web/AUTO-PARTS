@@ -10,6 +10,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { PurchaseStatus, PaymentMethod } from '@autoparts/shared-types';
+import { Shop } from '../../shops/entities/shop.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 import { Supplier } from '../../suppliers/entities/supplier.entity';
 import { User } from '../../users/entities/user.entity';
 import { PurchaseItem } from './purchase-item.entity';
@@ -21,6 +23,13 @@ import { PurchaseItem } from './purchase-item.entity';
 export class Purchase {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ type: 'uuid' })
   supplierId: string;
@@ -58,6 +67,13 @@ export class Purchase {
 
   @Column({ type: 'enum', enum: PurchaseStatus, default: PurchaseStatus.PENDING })
   status: PurchaseStatus;
+
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branchId' })
+  branch: Branch | null;
 
   @Column({ nullable: true, type: 'uuid' })
   createdById: string | null;

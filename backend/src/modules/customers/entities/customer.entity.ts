@@ -3,15 +3,25 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Shop } from '../../shops/entities/shop.entity';
 
 @Entity('customers')
 @Index(['isActive'])
 export class Customer {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ type: 'varchar', length: 200 })
   name: string;

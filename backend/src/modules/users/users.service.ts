@@ -18,23 +18,24 @@ export class UsersService {
     private readonly repo: Repository<User>,
   ) {}
 
-  async create(dto: CreateUserDto): Promise<User> {
+  async create(dto: CreateUserDto, shopId?: string | null): Promise<User> {
     const existing = await this.repo.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already in use.');
     const hashed = await bcrypt.hash(dto.password, 12);
-    const user = await this.repo.save(this.repo.create({ ...dto, password: hashed }));
+    const user = await this.repo.save(this.repo.create({ ...dto, password: hashed, shopId: shopId ?? null }));
     return this.sanitize(user);
   }
 
-  async findAll(q?: string, page = 1, limit = 50) {
+  async findAll(shopId?: string | null, q?: string, page = 1, limit = 50) {
     const qb = this.repo
       .createQueryBuilder('u')
-      .select(['u.id', 'u.name', 'u.email', 'u.role', 'u.isActive', 'u.createdAt', 'u.updatedAt'])
+      .select(['u.id', 'u.name', 'u.email', 'u.role', 'u.shopId', 'u.branchId', 'u.isActive', 'u.createdAt', 'u.updatedAt'])
       .orderBy('u.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
-    if (q) qb.where('(u.name ILIKE :q OR u.email ILIKE :q)', { q: `%${q}%` });
+    if (shopId) qb.andWhere('u.shopId = :shopId', { shopId });
+    if (q) qb.andWhere('(u.name ILIKE :q OR u.email ILIKE :q)', { q: `%${q}%` });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
@@ -100,7 +101,6 @@ export class UsersService {
     await this.repo.update(userId, { refreshTokenHash: hash });
   }
 
-  /** Strip sensitive fields before returning */
   private sanitize(user: User): User {
     const { password, refreshTokenHash, ...safe } = user as any;
     return safe as User;

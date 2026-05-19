@@ -17,7 +17,7 @@ export class StockService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async getAllStockLevels(q?: string): Promise<Stock[]> {
+  async getAllStockLevels(shopId?: string | null, q?: string, branchId?: string): Promise<Stock[]> {
     const qb = this.stockRepo
       .createQueryBuilder('s')
       .leftJoinAndSelect('s.part', 'part')
@@ -26,12 +26,14 @@ export class StockService {
       .orderBy('part.nameEn', 'ASC')
       .addOrderBy('location.name', 'ASC');
 
+    if (shopId) qb.andWhere('s.shopId = :shopId', { shopId });
     if (q) {
       qb.andWhere(
         '(part.nameEn ILIKE :q OR part.partNumber ILIKE :q OR location.name ILIKE :q)',
         { q: `%${q}%` },
       );
     }
+    if (branchId) qb.andWhere('location.branchId = :branchId', { branchId });
 
     return qb.getMany();
   }
@@ -49,15 +51,15 @@ export class StockService {
     return parseFloat(result?.total ?? '0');
   }
 
-  async receiveStock(dto: ReceiveStockDto, createdById?: string): Promise<Stock> {
-    return this.addStock(dto.partId, dto.locationId, dto.quantity, undefined, createdById, dto.notes);
+  async receiveStock(dto: ReceiveStockDto, shopId?: string | null, createdById?: string): Promise<Stock> {
+    return this.addStock(dto.partId, dto.locationId, dto.quantity, shopId, undefined, createdById, dto.notes);
   }
 
-  async adjustStock(dto: AdjustStockDto, createdById?: string): Promise<Stock> {
+  async adjustStock(dto: AdjustStockDto, shopId?: string | null, createdById?: string): Promise<Stock> {
     return this.dataSource.transaction(async (manager) => {
       let stock = await manager.findOne(Stock, { where: { partId: dto.partId, locationId: dto.locationId } });
       if (!stock) {
-        stock = manager.create(Stock, { partId: dto.partId, locationId: dto.locationId, quantity: 0 });
+        stock = manager.create(Stock, { partId: dto.partId, locationId: dto.locationId, quantity: 0, shopId: shopId ?? null });
       }
 
       const newQty = stock.quantity + dto.quantity;
@@ -77,6 +79,7 @@ export class StockService {
           fromLocationId: dto.quantity < 0 ? dto.locationId : null,
           quantity: Math.abs(dto.quantity),
           type: StockMovementType.ADJUSTMENT,
+          shopId: shopId ?? null,
           createdById,
           notes: dto.notes,
         }),
@@ -91,6 +94,7 @@ export class StockService {
     partId: string,
     locationId: string,
     quantity: number,
+    shopId?: string | null,
     referenceId?: string,
     createdById?: string,
     notes?: string,
@@ -98,7 +102,7 @@ export class StockService {
     return this.dataSource.transaction(async (manager) => {
       let stock = await manager.findOne(Stock, { where: { partId, locationId } });
       if (!stock) {
-        stock = manager.create(Stock, { partId, locationId, quantity: 0 });
+        stock = manager.create(Stock, { partId, locationId, quantity: 0, shopId: shopId ?? null });
       }
       stock.quantity += quantity;
       await manager.save(stock);
@@ -106,7 +110,7 @@ export class StockService {
       await manager.save(
         manager.create(StockMovement, {
           partId, toLocationId: locationId, quantity,
-          type: StockMovementType.IN, referenceId, createdById, notes,
+          type: StockMovementType.IN, referenceId, shopId: shopId ?? null, createdById, notes,
         }),
       );
       return stock;
@@ -118,6 +122,7 @@ export class StockService {
     partId: string,
     locationId: string,
     quantity: number,
+    shopId?: string | null,
     referenceId?: string,
     createdById?: string,
     notes?: string,
@@ -133,14 +138,14 @@ export class StockService {
       await manager.save(
         manager.create(StockMovement, {
           partId, fromLocationId: locationId, quantity,
-          type: StockMovementType.OUT, referenceId, createdById, notes,
+          type: StockMovementType.OUT, referenceId, shopId: shopId ?? null, createdById, notes,
         }),
       );
       return stock;
     });
   }
 
-  async getMovements(partId?: string, page = 1, limit = 50) {
+  async getMovements(shopId?: string | null, partId?: string, page = 1, limit = 50, branchId?: string) {
     const qb = this.movementRepo
       .createQueryBuilder('m')
       .leftJoinAndSelect('m.part', 'part')
@@ -151,7 +156,12 @@ export class StockService {
       .skip((page - 1) * limit)
       .take(limit);
 
-    if (partId) qb.where('m.partId = :partId', { partId });
+    if (shopId) qb.andWhere('m.shopId = :shopId', { shopId });
+    if (partId) qb.andWhere('m.partId = :partId', { partId });
+    if (branchId) qb.andWhere(
+      '(fromLocation.branchId = :branchId OR toLocation.branchId = :branchId)',
+      { branchId },
+    );
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };

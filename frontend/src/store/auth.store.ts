@@ -9,6 +9,8 @@ interface User {
   name: string;
   email: string;
   role: string;
+  shopId: string | null;
+  branchId: string | null;
 }
 
 interface AuthState {

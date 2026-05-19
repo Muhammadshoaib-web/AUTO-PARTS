@@ -9,11 +9,11 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 export class ExpensesService {
   constructor(@InjectRepository(Expense) private readonly repo: Repository<Expense>) {}
 
-  create(dto: CreateExpenseDto, createdById?: string): Promise<Expense> {
-    return this.repo.save(this.repo.create({ ...dto, createdById }));
+  create(dto: CreateExpenseDto, shopId?: string | null, createdById?: string, branchId?: string | null): Promise<Expense> {
+    return this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null, createdById, branchId: branchId ?? null }));
   }
 
-  async findAll(page = 1, limit = 20, category?: string, from?: string, to?: string) {
+  async findAll(shopId?: string | null, page = 1, limit = 20, category?: string, from?: string, to?: string, branchId?: string) {
     const qb = this.repo
       .createQueryBuilder('e')
       .leftJoinAndSelect('e.createdBy', 'createdBy')
@@ -22,9 +22,11 @@ export class ExpensesService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('e.shopId = :shopId', { shopId });
     if (category) qb.andWhere('e.category = :category', { category });
     if (from) qb.andWhere('e.date >= :from', { from });
     if (to) qb.andWhere('e.date <= :to', { to });
+    if (branchId) qb.andWhere('e.branchId = :branchId', { branchId });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
@@ -48,33 +50,36 @@ export class ExpensesService {
     return { message: 'Expense deleted.' };
   }
 
-  async getSummary() {
+  async getSummary(shopId?: string | null) {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
 
+    const baseQb = () => {
+      const qb = this.repo.createQueryBuilder('e');
+      if (shopId) qb.andWhere('e.shopId = :shopId', { shopId });
+      return qb;
+    };
+
     const [monthly, yearly, byCategory] = await Promise.all([
-      this.repo
-        .createQueryBuilder('e')
+      baseQb()
         .select('COALESCE(SUM(e.amount), 0)', 'total')
         .addSelect('COUNT(*)', 'count')
-        .where('e.date >= :from AND e.date <= :to', { from: monthStart, to: today })
+        .andWhere('e.date >= :from AND e.date <= :to', { from: monthStart, to: today })
         .getRawOne<{ total: string; count: string }>(),
 
-      this.repo
-        .createQueryBuilder('e')
+      baseQb()
         .select('COALESCE(SUM(e.amount), 0)', 'total')
         .addSelect('COUNT(*)', 'count')
-        .where('e.date >= :from AND e.date <= :to', { from: yearStart, to: today })
+        .andWhere('e.date >= :from AND e.date <= :to', { from: yearStart, to: today })
         .getRawOne<{ total: string; count: string }>(),
 
-      this.repo
-        .createQueryBuilder('e')
+      baseQb()
         .select('e.category', 'category')
         .addSelect('COALESCE(SUM(e.amount), 0)', 'total')
         .addSelect('COUNT(*)', 'count')
-        .where('e.date >= :from AND e.date <= :to', { from: yearStart, to: today })
+        .andWhere('e.date >= :from AND e.date <= :to', { from: yearStart, to: today })
         .groupBy('e.category')
         .orderBy('total', 'DESC')
         .getRawMany<{ category: string; total: string; count: string }>(),

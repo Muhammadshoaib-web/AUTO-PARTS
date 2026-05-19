@@ -12,21 +12,24 @@ export class PurchasesController {
 
   @Post()
   @ApiOperation({ summary: 'Create purchase order' })
-  create(@Body() dto: CreatePurchaseDto, @CurrentUser() user: { id: string }) {
-    return this.svc.create(dto, user?.id);
+  create(@Body() dto: CreatePurchaseDto, @CurrentUser() user: any) {
+    return this.svc.create(dto, user?.id, user?.shopId, user?.branchId);
   }
 
   @Get()
   @ApiOperation({ summary: 'List purchases (paginated)' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('supplierId') supplierId?: string,
     @Query('status') status?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('branchId') branchId?: string,
   ) {
-    return this.svc.findAll(page ? +page : 1, limit ? +limit : 20, supplierId, status, from, to);
+    const effectiveBranchId: string | undefined = user?.branchId ?? branchId;
+    return this.svc.findAll(user?.shopId, page ? +page : 1, limit ? +limit : 20, supplierId, status, from, to, effectiveBranchId);
   }
 
   @Get(':id')

@@ -25,6 +25,10 @@ import { SalesModule } from './modules/sales/sales.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { BranchesModule } from './modules/branches/branches.module';
+import { ShopsModule } from './modules/shops/shops.module';
+import { StockTransfersModule } from './modules/stock-transfers/stock-transfers.module';
+import { LedgerModule } from './modules/ledger/ledger.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -63,6 +67,10 @@ import { AppController } from './app.controller';
     ExpensesModule,
     ReportsModule,
     AuditModule,
+    BranchesModule,
+    ShopsModule,
+    StockTransfersModule,
+    LedgerModule,
   ],
 
   controllers: [AppController],

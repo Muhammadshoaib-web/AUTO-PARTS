@@ -1,11 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsEmail,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MinLength,
+  IsEmail, IsEnum, IsNotEmpty, IsOptional,
+  IsString, IsUUID, MinLength,
 } from 'class-validator';
 import { UserRole } from '@autoparts/shared-types';
 
@@ -28,4 +24,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
+
+  @ApiPropertyOptional({ description: 'Assign to a branch — leave null for admin-level users' })
+  @IsOptional()
+  @IsUUID()
+  branchId?: string | null;
 }

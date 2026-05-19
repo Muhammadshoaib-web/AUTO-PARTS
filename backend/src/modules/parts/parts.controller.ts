@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PartsService } from './parts.service';
 import { CreatePartDto } from './dto/create-part.dto';
 import { UpdatePartDto } from './dto/update-part.dto';
@@ -17,33 +18,45 @@ export class PartsController {
 
   @Post()
   @ApiOperation({ summary: 'Create part' })
-  create(@Body() dto: CreatePartDto) { return this.svc.create(dto); }
+  create(@Body() dto: CreatePartDto, @CurrentUser() user: any) {
+    return this.svc.create(dto, user?.shopId);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List parts with filters & pagination' })
-  findAll(@Query() filter: FilterPartsDto) { return this.svc.findAll(filter); }
+  findAll(@Query() filter: FilterPartsDto, @CurrentUser() user: any) {
+    return this.svc.findAll(filter, user?.shopId);
+  }
 
   @Get('low-stock')
   @ApiOperation({ summary: 'Parts below minimum stock threshold' })
-  lowStock() { return this.svc.findLowStock(); }
+  lowStock(@CurrentUser() user: any) {
+    return this.svc.findLowStock(user?.shopId);
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get part by ID (with stock per location)' })
-  findOne(@Param('id') id: string) { return this.svc.findOne(id); }
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.svc.findOne(id, user?.shopId);
+  }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update part' })
-  update(@Param('id') id: string, @Body() dto: UpdatePartDto) { return this.svc.update(id, dto); }
+  update(@Param('id') id: string, @Body() dto: UpdatePartDto, @CurrentUser() user: any) {
+    return this.svc.update(id, dto, user?.shopId);
+  }
 
   @Post(':id/image')
   @ApiOperation({ summary: 'Upload part image' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('image'))
-  uploadImage(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
-    return this.svc.updateImage(id, file.path);
+  uploadImage(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
+    return this.svc.updateImage(id, file.path, user?.shopId);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Soft-delete part' })
-  remove(@Param('id') id: string) { return this.svc.remove(id); }
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.svc.remove(id, user?.shopId);
+  }
 }

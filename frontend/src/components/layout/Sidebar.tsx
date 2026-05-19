@@ -6,12 +6,14 @@ import { clsx } from 'clsx';
 import {
   LayoutDashboard, Package, Tag, Layers, ShoppingCart,
   Truck, Users, UserCircle, Receipt, BarChart3, Shield,
-  LogOut, Building2, X, Warehouse, BookOpen,
+  LogOut, Building2, X, Warehouse, BookOpen, ArrowLeftRight, GitBranch, Store,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api/client';
 
-const nav = [
+const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+
+const buildNav = (role: string) => [
   {
     group: 'Overview',
     items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
@@ -23,6 +25,7 @@ const nav = [
       { href: '/categories', label: 'Categories', icon: Tag },
       { href: '/stock', label: 'Stock Levels', icon: Layers },
       { href: '/locations', label: 'Locations', icon: Warehouse },
+      { href: '/stock-transfers', label: 'Stock Transfers', icon: ArrowLeftRight },
     ],
   },
   {
@@ -50,6 +53,8 @@ const nav = [
     group: 'Administration',
     items: [
       { href: '/reports', label: 'Reports', icon: BarChart3 },
+      ...(ADMIN_ROLES.includes(role) ? [{ href: '/branches', label: 'Branches', icon: GitBranch }] : []),
+      ...(role === 'SUPER_ADMIN' ? [{ href: '/shops', label: 'Shops', icon: Store }] : []),
       { href: '/users', label: 'Users', icon: Users },
       { href: '/audit', label: 'Audit Logs', icon: Shield },
     ],
@@ -60,6 +65,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const nav = buildNav(user?.role ?? '');
 
   const handleLogout = async () => {
     try { await api.post('/v1/auth/logout'); } catch {}

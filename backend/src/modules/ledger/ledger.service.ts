@@ -29,8 +29,6 @@ export class LedgerService {
     private readonly dataSource: DataSource,
   ) {}
 
-  // ── Internal helpers ─────────────────────────────────────────────────────
-
   async getBalance(entityType: LedgerEntityType, entityId: string): Promise<number> {
     const last = await this.repo.findOne({
       where: { entityType, entityId },
@@ -61,21 +59,24 @@ export class LedgerService {
     return this.repo.find({ where: { entityType, entityId }, order: { createdAt: 'ASC' } });
   }
 
-  // ── Summary ──────────────────────────────────────────────────────────────
+  async getSummary(shopId?: string | null) {
+    const payablesQb = this.supplierRepo
+      .createQueryBuilder('s')
+      .select('COALESCE(SUM(CAST(s.balance AS DECIMAL)), 0)', 'total')
+      .where('s.isActive = true AND s.balance > 0');
+    if (shopId) payablesQb.andWhere('s.shopId = :shopId', { shopId });
 
-  async getSummary() {
+    const receivablesQb = this.customerRepo
+      .createQueryBuilder('c')
+      .select('COALESCE(SUM(CAST(c.balance AS DECIMAL)), 0)', 'total')
+      .where('c.isActive = true AND c.balance > 0');
+    if (shopId) receivablesQb.andWhere('c.shopId = :shopId', { shopId });
+
     const [payables, receivables] = await Promise.all([
-      this.supplierRepo
-        .createQueryBuilder('s')
-        .select('COALESCE(SUM(CAST(s.balance AS DECIMAL)), 0)', 'total')
-        .where('s.isActive = true AND s.balance > 0')
-        .getRawOne<{ total: string }>(),
-      this.customerRepo
-        .createQueryBuilder('c')
-        .select('COALESCE(SUM(CAST(c.balance AS DECIMAL)), 0)', 'total')
-        .where('c.isActive = true AND c.balance > 0')
-        .getRawOne<{ total: string }>(),
+      payablesQb.getRawOne<{ total: string }>(),
+      receivablesQb.getRawOne<{ total: string }>(),
     ]);
+
     const totalPayables    = parseFloat(payables?.total   ?? '0');
     const totalReceivables = parseFloat(receivables?.total ?? '0');
     return {
@@ -85,9 +86,7 @@ export class LedgerService {
     };
   }
 
-  // ── Entity lists ─────────────────────────────────────────────────────────
-
-  async getSuppliers(q?: string, page = 1, limit = 30) {
+  async getSuppliers(shopId?: string | null, q?: string, page = 1, limit = 30) {
     const qb = this.supplierRepo
       .createQueryBuilder('s')
       .where('s.isActive = true')
@@ -96,13 +95,14 @@ export class LedgerService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('s.shopId = :shopId', { shopId });
     if (q) qb.andWhere('(s.name ILIKE :q OR s.phone ILIKE :q OR s.email ILIKE :q)', { q: `%${q}%` });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async getCustomers(q?: string, page = 1, limit = 30) {
+  async getCustomers(shopId?: string | null, q?: string, page = 1, limit = 30) {
     const qb = this.customerRepo
       .createQueryBuilder('c')
       .where('c.isActive = true')
@@ -111,13 +111,12 @@ export class LedgerService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('c.shopId = :shopId', { shopId });
     if (q) qb.andWhere('(c.name ILIKE :q OR c.phone ILIKE :q OR c.email ILIKE :q)', { q: `%${q}%` });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
-
-  // ── Paginated ledger entries for one entity ───────────────────────────────
 
   async getEntries(entityType: LedgerEntityType, entityId: string, page = 1, limit = 25) {
     const [items, total] = await this.repo.findAndCount({
@@ -128,8 +127,6 @@ export class LedgerService {
     });
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
-
-  // ── Auto-called from purchases / sales on credit ─────────────────────────
 
   async recordCreditPurchase(supplierId: string, amount: number, purchaseId: string): Promise<void> {
     if (amount <= 0) return;
@@ -168,8 +165,6 @@ export class LedgerService {
     }));
     await this.customerRepo.update(customerId, { balance: newBalance });
   }
-
-  // ── Record payment ───────────────────────────────────────────────────────
 
   async recordSupplierPayment(supplierId: string, amount: number, notes?: string) {
     const supplier = await this.supplierRepo.findOne({ where: { id: supplierId } });

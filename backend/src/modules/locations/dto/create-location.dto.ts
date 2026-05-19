@@ -8,4 +8,5 @@ export class CreateLocationDto {
   @IsOptional() @IsEnum(LocationType) type?: LocationType;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() parentId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() branchId?: string;
 }

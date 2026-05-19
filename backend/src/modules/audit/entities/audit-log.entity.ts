@@ -7,6 +7,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Shop } from '../../shops/entities/shop.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('audit_logs')
@@ -16,6 +17,13 @@ import { User } from '../../users/entities/user.entity';
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ nullable: true, type: 'uuid' })
   userId: string | null;

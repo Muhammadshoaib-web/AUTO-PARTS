@@ -21,7 +21,7 @@ export class PurchasesService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(dto: CreatePurchaseDto, createdById?: string): Promise<Purchase> {
+  async create(dto: CreatePurchaseDto, createdById?: string, shopId?: string | null, branchId?: string | null): Promise<Purchase> {
     const result = await this.dataSource.transaction(async (manager) => {
       const items: PurchaseItem[] = dto.items.map((i) => {
         const total = i.quantity * i.unitPrice;
@@ -49,6 +49,8 @@ export class PurchasesService {
           notes: dto.notes ?? null,
           items,
           createdById,
+          shopId: shopId ?? null,
+          branchId: branchId ?? null,
           status: PurchaseStatus.PENDING,
         }),
       );
@@ -69,7 +71,7 @@ export class PurchasesService {
     return result;
   }
 
-  async findAll(page = 1, limit = 20, supplierId?: string, status?: string, from?: string, to?: string) {
+  async findAll(shopId?: string | null, page = 1, limit = 20, supplierId?: string, status?: string, from?: string, to?: string, branchId?: string) {
     const qb = this.repo
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.supplier', 'supplier')
@@ -79,10 +81,12 @@ export class PurchasesService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('p.shopId = :shopId', { shopId });
     if (supplierId) qb.andWhere('p.supplierId = :supplierId', { supplierId });
     if (status) qb.andWhere('p.status = :status', { status });
     if (from) qb.andWhere('DATE(p.createdAt) >= :from', { from });
     if (to) qb.andWhere('DATE(p.createdAt) <= :to', { to });
+    if (branchId) qb.andWhere('p.branchId = :branchId', { branchId });
 
     const [items, total] = await qb.getManyAndCount();
     return { items, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
@@ -117,6 +121,7 @@ export class PurchasesService {
         item.partId,
         item.locationId,
         item.quantity,
+        purchase.shopId,
         purchase.id,
         userId,
         `Received from ${purchase.invoiceNo}`,

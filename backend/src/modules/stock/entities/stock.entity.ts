@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Shop } from '../../shops/entities/shop.entity';
 import { Part } from '../../parts/entities/part.entity';
 import { Location } from '../../locations/entities/location.entity';
 
@@ -16,6 +17,13 @@ import { Location } from '../../locations/entities/location.entity';
 export class Stock {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ type: 'uuid' })
   partId: string;

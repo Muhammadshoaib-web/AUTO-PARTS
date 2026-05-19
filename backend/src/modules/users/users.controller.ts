@@ -20,18 +20,19 @@ export class UsersController {
 
   @Post()
   @ApiOperation({ summary: 'Create user (admin only)' })
-  create(@Body() dto: CreateUserDto) {
-    return this.svc.create(dto);
+  create(@Body() dto: CreateUserDto, @CurrentUser() user: any) {
+    return this.svc.create(dto, user?.shopId);
   }
 
   @Get()
   @ApiOperation({ summary: 'List users (paginated, searchable)' })
   findAll(
+    @CurrentUser() user: any,
     @Query('q') q?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.svc.findAll(q, page ? +page : 1, limit ? +limit : 50);
+    return this.svc.findAll(user?.shopId, q, page ? +page : 1, limit ? +limit : 50);
   }
 
   @Get(':id')

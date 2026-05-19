@@ -12,25 +12,30 @@ export class SalesController {
 
   @Post()
   @ApiOperation({ summary: 'Create sale (full POS transaction)' })
-  create(@Body() dto: CreateSaleDto, @CurrentUser() user: { id: string }) {
-    return this.svc.create(dto, user?.id);
+  create(@Body() dto: CreateSaleDto, @CurrentUser() user: any) {
+    return this.svc.create(dto, user?.id, user?.shopId, user?.branchId);
   }
 
   @Get()
   @ApiOperation({ summary: 'List sales (paginated)' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('status') status?: string,
+    @Query('branchId') branchId?: string,
   ) {
-    return this.svc.findAll(page ? +page : 1, limit ? +limit : 20, from, to, status);
+    const effectiveBranchId: string | undefined = user?.branchId ?? branchId;
+    return this.svc.findAll(user?.shopId, page ? +page : 1, limit ? +limit : 20, from, to, status, effectiveBranchId);
   }
 
   @Get('daily-summary')
   @ApiOperation({ summary: "Today's revenue summary" })
-  dailySummary() { return this.svc.getDailySummary(); }
+  dailySummary(@CurrentUser() user: any) {
+    return this.svc.getDailySummary(user?.shopId);
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get sale by ID' })

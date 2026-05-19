@@ -13,24 +13,29 @@ export class ExpensesController {
 
   @Post()
   @ApiOperation({ summary: 'Create expense' })
-  create(@Body() dto: CreateExpenseDto, @CurrentUser() user: { id: string }) {
-    return this.svc.create(dto, user?.id);
+  create(@Body() dto: CreateExpenseDto, @CurrentUser() user: any) {
+    return this.svc.create(dto, user?.shopId, user?.id, user?.branchId);
   }
 
   @Get('summary')
   @ApiOperation({ summary: 'Monthly / yearly expense summary' })
-  summary() { return this.svc.getSummary(); }
+  summary(@CurrentUser() user: any) {
+    return this.svc.getSummary(user?.shopId);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List expenses (paginated, filterable)' })
   findAll(
+    @CurrentUser() user: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('category') category?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('branchId') branchId?: string,
   ) {
-    return this.svc.findAll(page ? +page : 1, limit ? +limit : 20, category, from, to);
+    const effectiveBranchId: string | undefined = user?.branchId ?? branchId;
+    return this.svc.findAll(user?.shopId, page ? +page : 1, limit ? +limit : 20, category, from, to, effectiveBranchId);
   }
 
   @Patch(':id')

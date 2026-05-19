@@ -9,14 +9,21 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 export class LocationsService {
   constructor(@InjectRepository(Location) private readonly repo: Repository<Location>) {}
 
-  create(dto: CreateLocationDto): Promise<Location> { return this.repo.save(this.repo.create(dto)); }
+  create(dto: CreateLocationDto, shopId?: string | null): Promise<Location> {
+    return this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null }));
+  }
 
-  findAll(): Promise<Location[]> {
-    return this.repo.find({
-      where: { isActive: true },
-      relations: ['parent', 'children'],
-      order: { name: 'ASC' },
-    });
+  findAll(shopId?: string | null, branchId?: string): Promise<Location[]> {
+    const qb = this.repo
+      .createQueryBuilder('l')
+      .where('l.isActive = true')
+      .leftJoinAndSelect('l.parent', 'parent')
+      .leftJoinAndSelect('l.children', 'children')
+      .orderBy('l.name', 'ASC');
+
+    if (shopId) qb.andWhere('l.shopId = :shopId', { shopId });
+    if (branchId) qb.andWhere('l.branchId = :branchId', { branchId });
+    return qb.getMany();
   }
 
   async findOne(id: string): Promise<Location> {

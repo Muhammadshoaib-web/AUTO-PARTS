@@ -10,6 +10,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { SaleStatus, PaymentMethod } from '@autoparts/shared-types';
+import { Shop } from '../../shops/entities/shop.entity';
+import { Branch } from '../../branches/entities/branch.entity';
 import { Customer } from '../../customers/entities/customer.entity';
 import { User } from '../../users/entities/user.entity';
 import { SaleItem } from './sale-item.entity';
@@ -21,6 +23,13 @@ import { SaleItem } from './sale-item.entity';
 export class Sale {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  shopId: string | null;
+
+  @ManyToOne(() => Shop, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shopId' })
+  shop: Shop | null;
 
   @Column({ type: 'uuid', nullable: true })
   customerId: string | null;
@@ -66,6 +75,13 @@ export class Sale {
 
   @Column({ type: 'enum', enum: SaleStatus, default: SaleStatus.COMPLETED })
   status: SaleStatus;
+
+  @Column({ type: 'uuid', nullable: true })
+  branchId: string | null;
+
+  @ManyToOne(() => Branch, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branchId' })
+  branch: Branch | null;
 
   @Column({ nullable: true, type: 'uuid' })
   createdById: string | null;
