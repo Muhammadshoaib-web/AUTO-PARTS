@@ -12,6 +12,7 @@ import {
   ChevronLeft, ChevronRight, Building2, UserCircle,
   CreditCard, ArrowDownLeft, ArrowUpRight,
 } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -307,20 +308,14 @@ function LedgerModal({
           </div>
 
           {/* Pagination */}
-          {meta && meta.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500 flex-shrink-0">
-              <span>Page {meta.page} of {meta.totalPages}</span>
-              <div className="flex gap-1">
-                <button onClick={() => setPage((p) => p - 1)} disabled={page === 1}
-                  className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">
-                  <ChevronLeft size={14} />
-                </button>
-                <button onClick={() => setPage((p) => p + 1)} disabled={page >= (meta?.totalPages ?? 1)}
-                  className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
+          {meta && (
+            <Pagination
+              page={page}
+              totalPages={meta.totalPages}
+              total={meta.total}
+              limit={meta.limit}
+              onPageChange={setPage}
+            />
           )}
         </div>
       </div>
@@ -442,20 +437,14 @@ function EntityTable({
         </tbody>
       </table>
 
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
-          <span>{meta.total} records · Page {meta.page} of {meta.totalPages}</span>
-          <div className="flex gap-1">
-            <button onClick={() => setPage((p) => p - 1)} disabled={page === 1}
-              className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">
-              <ChevronLeft size={14} />
-            </button>
-            <button onClick={() => setPage((p) => p + 1)} disabled={page >= (meta?.totalPages ?? 1)}
-              className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
+      {meta && (
+        <Pagination
+          page={page}
+          totalPages={meta.totalPages}
+          total={meta.total}
+          limit={meta.limit}
+          onPageChange={setPage}
+        />
       )}
 
       {selected && (

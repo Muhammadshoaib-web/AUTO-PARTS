@@ -12,6 +12,7 @@ import {
   Plus, Search, X, Pencil, KeyRound, UserX, UserCheck,
   Shield, Users, AlertTriangle, Eye, EyeOff,
 } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -353,6 +354,7 @@ function ToggleStatusModal({ user, onClose }: { user: User; onClose: () => void 
 
 export default function UsersPage() {
   const [search, setSearch]           = useState('');
+  const [page, setPage]               = useState(1);
   const [showCreate, setShowCreate]   = useState(false);
   const [editUser, setEditUser]       = useState<User | null>(null);
   const [resetUser, setResetUser]     = useState<User | null>(null);
@@ -360,16 +362,18 @@ export default function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['users', search],
+    queryKey: ['users', search, page],
     queryFn: () =>
-      api.get('/v1/users', { params: { q: search || undefined, limit: 100 } })
+      api.get('/v1/users', { params: { q: search || undefined, page, limit: 20 } })
         .then((r) => r.data.data),
   });
 
   const users: User[] = data?.items ?? [];
+  const meta = data?.meta;
 
   const active   = users.filter((u) => u.isActive).length;
   const inactive = users.filter((u) => !u.isActive).length;
+  const totalUsers = meta?.total ?? users.length;
   const byRole   = ROLES.map((r) => ({
     ...r,
     count: users.filter((u) => u.role === r.value).length,
@@ -398,7 +402,7 @@ export default function UsersPage() {
             <Users size={15} className="text-blue-500" />
             <span className="text-xs font-medium text-gray-500">Total</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
           <div className="flex items-center gap-2 mb-1">
@@ -435,12 +439,12 @@ export default function UsersPage() {
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           placeholder="Search by name or email..."
           className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+          <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
             <X size={14} />
           </button>
         )}
@@ -546,6 +550,19 @@ export default function UsersPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {meta && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <Pagination
+            page={page}
+            totalPages={meta.totalPages}
+            total={meta.total}
+            limit={meta.limit}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

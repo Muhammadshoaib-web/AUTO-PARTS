@@ -8,6 +8,7 @@ import {
   Search, X, Plus, Minus, Trash2, Eye, CheckCircle, XCircle,
   Truck, ChevronLeft, ChevronRight, Package, ShoppingBag,
 } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -478,29 +479,14 @@ function HistoryTab() {
       </div>
 
       {/* Pagination */}
-      {meta && meta.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>{meta.total} total</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-medium text-xs">
-              {page} / {meta.totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-              disabled={page === meta.totalPages}
-              className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+      {meta && (
+        <Pagination
+          page={page}
+          totalPages={meta.totalPages}
+          total={meta.total}
+          limit={meta.limit}
+          onPageChange={setPage}
+        />
       )}
 
       {detailPO && (

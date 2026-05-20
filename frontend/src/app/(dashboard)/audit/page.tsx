@@ -7,6 +7,7 @@ import {
   Shield, Search, X, ChevronDown, ChevronRight,
   Calendar, Filter, RefreshCw,
 } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -374,60 +375,14 @@ export default function AuditPage() {
         </div>
 
         {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
-            <span>
-              Page {pagination.page} of {pagination.totalPages}
-              <span className="ml-2 text-gray-400">({pagination.total.toLocaleString()} total)</span>
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(1)}
-                disabled={page === 1}
-                className="px-2 py-1 rounded-lg border border-gray-200 text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                First
-              </button>
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page === 1}
-                className="px-3 py-1 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Prev
-              </button>
-              {/* page numbers — show at most 5 around current */}
-              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                const start = Math.max(1, Math.min(page - 2, pagination.totalPages - 4));
-                return start + i;
-              }).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`w-8 py-1 rounded-lg text-xs border transition-colors ${
-                    p === page
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= pagination.totalPages}
-                className="px-3 py-1 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Next
-              </button>
-              <button
-                onClick={() => setPage(pagination.totalPages)}
-                disabled={page === pagination.totalPages}
-                className="px-2 py-1 rounded-lg border border-gray-200 text-xs disabled:opacity-40 hover:bg-gray-50 transition-colors"
-              >
-                Last
-              </button>
-            </div>
-          </div>
+        {pagination && (
+          <Pagination
+            page={page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pagination.limit}
+            onPageChange={setPage}
+          />
         )}
       </div>
 

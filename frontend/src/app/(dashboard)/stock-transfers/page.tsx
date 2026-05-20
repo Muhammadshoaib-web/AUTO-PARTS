@@ -7,6 +7,7 @@ import { useToastStore } from '@/store/toast.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useBranchStore } from '@/store/branch.store';
 import { ArrowLeftRight, Plus, Package, MapPin } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 const fmtDate = (s: string) =>
   new Date(s).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -289,28 +290,13 @@ export default function StockTransfersPage() {
             </table>
 
             {/* Pagination */}
-            {meta.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-600">
-                <span>{meta.total} total transfers</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-                  >
-                    Prev
-                  </button>
-                  <span className="px-3 py-1">{page} / {meta.totalPages}</span>
-                  <button
-                    onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-                    disabled={page === meta.totalPages}
-                    className="px-3 py-1 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={page}
+              totalPages={meta.totalPages}
+              total={meta.total}
+              limit={20}
+              onPageChange={setPage}
+            />
           </>
         )}
       </div>

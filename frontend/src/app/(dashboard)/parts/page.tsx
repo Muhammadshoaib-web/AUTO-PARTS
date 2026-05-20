@@ -9,9 +9,9 @@ import { api } from '@/lib/api/client';
 import { toast } from '@/store/toast.store';
 import {
   Plus, Search, Package, Pencil, Trash2, X, Eye,
-  AlertTriangle, ChevronLeft, ChevronRight, Tag,
-  DollarSign, Hash, Boxes,
+  AlertTriangle, Tag, DollarSign, Hash, Boxes,
 } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -278,28 +278,14 @@ export default function PartsPage() {
         </div>
 
         {/* Pagination */}
-        {meta && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500">
-              Showing {(page - 1) * meta.limit + 1}–{Math.min(page * meta.limit, meta.total)} of {meta.total}
-            </p>
-            <div className="flex items-center gap-1">
-              <PaginationBtn onClick={() => setPage(page - 1)} disabled={page === 1}>
-                <ChevronLeft size={14} />
-              </PaginationBtn>
-              {Array.from({ length: Math.min(meta.totalPages, 5) }, (_, i) => {
-                const p = Math.max(1, Math.min(page - 2, meta.totalPages - 4)) + i;
-                return (
-                  <PaginationBtn key={p} onClick={() => setPage(p)} active={p === page}>
-                    {p}
-                  </PaginationBtn>
-                );
-              })}
-              <PaginationBtn onClick={() => setPage(page + 1)} disabled={page >= meta.totalPages}>
-                <ChevronRight size={14} />
-              </PaginationBtn>
-            </div>
-          </div>
+        {meta && (
+          <Pagination
+            page={page}
+            totalPages={meta.totalPages}
+            total={meta.total}
+            limit={meta.limit}
+            onPageChange={setPage}
+          />
         )}
       </div>
 
@@ -735,21 +721,6 @@ function ActionBtn({ children, onClick, title, className = '' }: {
   );
 }
 
-function PaginationBtn({ children, onClick, disabled, active }: {
-  children: React.ReactNode; onClick: () => void; disabled?: boolean; active?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors disabled:opacity-40 ${
-        active ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (

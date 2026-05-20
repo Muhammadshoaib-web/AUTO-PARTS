@@ -1,11 +1,11 @@
 import { AppDataSource } from '../data-source';
-import { seedAdminUser } from './admin-user.seed';
+import { runFullSeed } from './full.seed';
 
 async function runSeeds(): Promise<void> {
   await AppDataSource.initialize();
   console.log('Database connected. Running seeds...');
 
-  await seedAdminUser(AppDataSource);
+  await runFullSeed(AppDataSource);
 
   await AppDataSource.destroy();
   console.log('Seeds completed.');

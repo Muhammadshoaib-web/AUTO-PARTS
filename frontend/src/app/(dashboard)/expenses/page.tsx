@@ -9,8 +9,9 @@ import { api } from '@/lib/api/client';
 import { useToastStore } from '@/store/toast.store';
 import {
   Plus, X, Pencil, Trash2, Receipt, TrendingDown,
-  Calendar, ChevronLeft, ChevronRight, AlertTriangle,
+  Calendar, AlertTriangle,
 } from 'lucide-react';
+import { Pagination } from '@/components/ui/Pagination';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -525,33 +526,15 @@ export default function ExpensesPage() {
           </tbody>
         </table>
 
-        {/* Table footer: total + pagination */}
-        {expenses.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50 text-sm">
-            <span className="text-gray-500">
-              {meta?.total ?? 0} total ·{' '}
-              <span className="font-semibold text-red-600">
-                PKR {expenses.reduce((s, e) => s + Number(e.amount), 0).toLocaleString()}
-              </span>{' '}
-              <span className="text-gray-400">on this page</span>
-            </span>
-            {meta && meta.totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                  className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-white">
-                  <ChevronLeft size={15} />
-                </button>
-                <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-medium text-xs">
-                  {page} / {meta.totalPages}
-                </span>
-                <button onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
-                  disabled={page === meta.totalPages}
-                  className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-white">
-                  <ChevronRight size={15} />
-                </button>
-              </div>
-            )}
-          </div>
+        {/* Pagination */}
+        {meta && (
+          <Pagination
+            page={page}
+            totalPages={meta.totalPages}
+            total={meta.total}
+            limit={meta.limit}
+            onPageChange={setPage}
+          />
         )}
       </div>
 
