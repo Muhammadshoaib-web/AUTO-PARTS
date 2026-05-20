@@ -7,6 +7,7 @@ import { Stock } from '../stock/entities/stock.entity';
 import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { LedgerService } from '../ledger/ledger.service';
+import { AuditService } from '../audit/audit.service';
 import { SaleStatus, StockMovementType } from '@autoparts/shared-types';
 import { generateInvoiceNumber } from '@autoparts/utils';
 
@@ -16,6 +17,7 @@ export class SalesService {
     @InjectRepository(Sale) private readonly saleRepo: Repository<Sale>,
     @InjectRepository(SaleItem) private readonly itemRepo: Repository<SaleItem>,
     private readonly ledgerService: LedgerService,
+    private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -95,6 +97,15 @@ export class SalesService {
       }
     }
 
+    void this.auditService.log({
+      userId: createdById,
+      shopId: shopId ?? null,
+      action: 'CREATE',
+      resourceType: 'sale',
+      resourceId: result.id,
+      newData: { invoiceNo: result.invoiceNo, netTotal: result.netTotal, status: result.status },
+    });
+
     return result;
   }
 
@@ -128,8 +139,8 @@ export class SalesService {
     return s;
   }
 
-  async cancel(id: string): Promise<Sale> {
-    return this.dataSource.transaction(async (manager) => {
+  async cancel(id: string, requesterId?: string): Promise<Sale> {
+    const result = await this.dataSource.transaction(async (manager) => {
       const sale = await manager.findOne(Sale, { where: { id }, relations: ['items'] });
       if (!sale) throw new NotFoundException(`Sale ${id} not found.`);
       if (sale.status === SaleStatus.CANCELLED) {
@@ -163,6 +174,18 @@ export class SalesService {
       sale.status = SaleStatus.CANCELLED;
       return manager.save(sale);
     });
+
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: result.shopId ?? null,
+      action: 'CANCEL',
+      resourceType: 'sale',
+      resourceId: id,
+      oldData: { status: SaleStatus.COMPLETED },
+      newData: { status: SaleStatus.CANCELLED },
+    });
+
+    return result;
   }
 
   async getDailySummary(shopId?: string | null): Promise<{ total: number; count: number }> {

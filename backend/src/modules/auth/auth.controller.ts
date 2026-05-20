@@ -5,8 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -27,8 +29,8 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email & password' })
-  login(@CurrentUser() user: User) {
-    return this.authService.login(user);
+  login(@CurrentUser() user: User, @Req() req: Request) {
+    return this.authService.login(user, req.ip);
   }
 
   @Public()
@@ -50,8 +52,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Logout — invalidate refresh token' })
-  logout(@CurrentUser() user: User) {
-    return this.authService.logout(user.id);
+  logout(@CurrentUser() user: User, @Req() req: Request) {
+    return this.authService.logout(user.id, req.ip);
   }
 
   @Get('me')

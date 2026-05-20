@@ -19,7 +19,7 @@ export class PartsController {
   @Post()
   @ApiOperation({ summary: 'Create part' })
   create(@Body() dto: CreatePartDto, @CurrentUser() user: any) {
-    return this.svc.create(dto, user?.shopId);
+    return this.svc.create(dto, user?.shopId, user?.id);
   }
 
   @Get()
@@ -43,7 +43,7 @@ export class PartsController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update part' })
   update(@Param('id') id: string, @Body() dto: UpdatePartDto, @CurrentUser() user: any) {
-    return this.svc.update(id, dto, user?.shopId);
+    return this.svc.update(id, dto, user?.shopId, user?.id);
   }
 
   @Post(':id/image')
@@ -57,6 +57,6 @@ export class PartsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Soft-delete part' })
   remove(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.svc.remove(id, user?.shopId);
+    return this.svc.remove(id, user?.shopId, user?.id);
   }
 }

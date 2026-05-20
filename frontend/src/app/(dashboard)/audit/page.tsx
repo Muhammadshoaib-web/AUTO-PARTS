@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api/client';
 import {
   Shield, Search, X, ChevronDown, ChevronRight,
@@ -188,30 +190,31 @@ function SkeletonRows() {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function AuditPage() {
-  const [page, setPage]               = useState(1);
-  const [search, setSearch]           = useState('');
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  const [mounted, setMounted]                 = useState(false);
+  const [page, setPage]                       = useState(1);
+  const [search, setSearch]                   = useState('');
   const [actionFilter, setActionFilter]       = useState('');
   const [resourceFilter, setResourceFilter]   = useState('');
-  const [from, setFrom]               = useState('');
-  const [to, setTo]                   = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [from, setFrom]                       = useState('');
+  const [to, setTo]                           = useState('');
+  const [showFilters, setShowFilters]         = useState(false);
 
-  function resetFilters() {
-    setSearch(''); setActionFilter(''); setResourceFilter('');
-    setFrom(''); setTo(''); setPage(1);
-  }
+  const isAuthorized = mounted && user?.role === 'super_admin';
 
-  const hasActiveFilter = !!(search || actionFilter || resourceFilter || from || to);
-
+  // All hooks must be declared before any conditional return
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['audit', page, search, actionFilter, resourceFilter, from, to],
+    enabled: isAuthorized,
     queryFn: () =>
       api.get('/v1/audit', {
         params: {
           page,
           limit: 50,
-          q:            search       || undefined,
-          action:       actionFilter || undefined,
+          q:            search        || undefined,
+          action:       actionFilter  || undefined,
           resourceType: resourceFilter || undefined,
           from:         from || undefined,
           to:           to   || undefined,
@@ -221,14 +224,32 @@ export default function AuditPage() {
 
   const { data: metaData } = useQuery({
     queryKey: ['audit-meta'],
+    enabled: isAuthorized,
     queryFn: () => api.get('/v1/audit/meta').then((r) => r.data.data),
     staleTime: 60_000,
   });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (mounted && user?.role !== 'super_admin') {
+      router.replace('/dashboard');
+    }
+  }, [mounted, user, router]);
+
+  if (!isAuthorized) return null;
 
   const items: AuditLog[] = data?.items ?? [];
   const pagination: Meta | undefined = data?.meta;
   const actions: string[]       = metaData?.actions ?? [];
   const resourceTypes: string[] = metaData?.resourceTypes ?? [];
+
+  function resetFilters() {
+    setSearch(''); setActionFilter(''); setResourceFilter('');
+    setFrom(''); setTo(''); setPage(1);
+  }
+
+  const hasActiveFilter = !!(search || actionFilter || resourceFilter || from || to);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">

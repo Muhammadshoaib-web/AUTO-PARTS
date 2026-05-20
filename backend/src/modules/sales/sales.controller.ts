@@ -43,5 +43,5 @@ export class SalesController {
 
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel a sale and restore stock' })
-  cancel(@Param('id') id: string) { return this.svc.cancel(id); }
+  cancel(@Param('id') id: string, @CurrentUser() user: any) { return this.svc.cancel(id, user?.id); }
 }

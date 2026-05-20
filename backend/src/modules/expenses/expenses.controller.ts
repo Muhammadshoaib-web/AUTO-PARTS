@@ -40,11 +40,11 @@ export class ExpensesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update expense' })
-  update(@Param('id') id: string, @Body() dto: UpdateExpenseDto) {
-    return this.svc.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateExpenseDto, @CurrentUser() user: any) {
+    return this.svc.update(id, dto, user?.id);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete expense' })
-  remove(@Param('id') id: string) { return this.svc.remove(id); }
+  remove(@Param('id') id: string, @CurrentUser() user: any) { return this.svc.remove(id, user?.id); }
 }

@@ -139,7 +139,7 @@ export default function ShopsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editShop, setEditShop] = useState<Shop | null>(null);
 
-  if (user?.role !== 'SUPER_ADMIN') {
+  if (user?.role !== 'super_admin') {
     redirect('/dashboard');
   }
 

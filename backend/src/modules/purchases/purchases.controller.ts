@@ -44,5 +44,5 @@ export class PurchasesController {
 
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel a pending purchase order' })
-  cancel(@Param('id') id: string) { return this.svc.cancel(id); }
+  cancel(@Param('id') id: string, @CurrentUser() user: any) { return this.svc.cancel(id, user?.id); }
 }

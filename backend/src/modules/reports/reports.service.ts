@@ -134,7 +134,7 @@ export class ReportsService {
       .addSelect('e.category', 'category')
       .where('e.date BETWEEN :from AND :to', { from, to })
       .groupBy('e.category')
-      .orderBy('total', 'DESC');
+      .orderBy('SUM(e.amount)', 'DESC');
     if (shopId) expQb.andWhere('e.shopId = :shopId', { shopId });
     if (branchId) expQb.andWhere('e.branchId = :branchId', { branchId });
 
@@ -181,7 +181,7 @@ export class ReportsService {
       .addSelect('CAST(s.quantity AS DECIMAL) * CAST(part.buyPrice AS DECIMAL)',  'costValue')
       .addSelect('CAST(s.quantity AS DECIMAL) * CAST(part.sellPrice AS DECIMAL)', 'retailValue')
       .where('s.quantity > 0')
-      .orderBy('costValue', 'DESC');
+      .orderBy('CAST(s.quantity AS DECIMAL) * CAST(part.buyPrice AS DECIMAL)', 'DESC');
 
     if (shopId) qb.andWhere('s.shopId = :shopId', { shopId });
 
@@ -222,7 +222,7 @@ export class ReportsService {
       .groupBy('part.id')
       .addGroupBy('part.nameEn')
       .addGroupBy('part.partNumber')
-      .orderBy('totalRevenue', 'DESC')
+      .orderBy('SUM(si.total)', 'DESC')
       .limit(limit);
     if (shopId) qb.andWhere('sale.shopId = :shopId', { shopId });
     if (branchId) qb.andWhere('sale.branchId = :branchId', { branchId });

@@ -4,13 +4,26 @@ import { Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ExpensesService {
-  constructor(@InjectRepository(Expense) private readonly repo: Repository<Expense>) {}
+  constructor(
+    @InjectRepository(Expense) private readonly repo: Repository<Expense>,
+    private readonly auditService: AuditService,
+  ) {}
 
-  create(dto: CreateExpenseDto, shopId?: string | null, createdById?: string, branchId?: string | null): Promise<Expense> {
-    return this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null, createdById, branchId: branchId ?? null }));
+  async create(dto: CreateExpenseDto, shopId?: string | null, createdById?: string, branchId?: string | null): Promise<Expense> {
+    const expense = await this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null, createdById, branchId: branchId ?? null }));
+    void this.auditService.log({
+      userId: createdById,
+      shopId: shopId ?? null,
+      action: 'CREATE',
+      resourceType: 'expense',
+      resourceId: expense.id,
+      newData: { category: expense.category, amount: expense.amount, description: expense.description },
+    });
+    return expense;
   }
 
   async findAll(shopId?: string | null, page = 1, limit = 20, category?: string, from?: string, to?: string, branchId?: string) {
@@ -38,15 +51,35 @@ export class ExpensesService {
     return e;
   }
 
-  async update(id: string, dto: UpdateExpenseDto): Promise<Expense> {
+  async update(id: string, dto: UpdateExpenseDto, requesterId?: string): Promise<Expense> {
     const e = await this.findOne(id);
+    const oldData = { category: e.category, amount: e.amount, description: e.description };
     Object.assign(e, dto);
-    return this.repo.save(e);
+    const saved = await this.repo.save(e);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: e.shopId ?? null,
+      action: 'UPDATE',
+      resourceType: 'expense',
+      resourceId: id,
+      oldData,
+      newData: { category: saved.category, amount: saved.amount, description: saved.description },
+    });
+    return saved;
   }
 
-  async remove(id: string): Promise<{ message: string }> {
+  async remove(id: string, requesterId?: string): Promise<{ message: string }> {
     const e = await this.findOne(id);
+    const oldData = { category: e.category, amount: e.amount, description: e.description };
     await this.repo.remove(e);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: e.shopId ?? null,
+      action: 'DELETE',
+      resourceType: 'expense',
+      resourceId: id,
+      oldData,
+    });
     return { message: 'Expense deleted.' };
   }
 

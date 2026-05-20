@@ -50,6 +50,9 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken: newAccess, refreshToken: newRefresh });
       },
     }),
-    { name: 'autoparts-auth', partialize: (s) => ({ refreshToken: s.refreshToken, user: s.user }) },
+    {
+      name: 'autoparts-auth',
+      partialize: (s) => ({ refreshToken: s.refreshToken, user: s.user }),
+    },
   ),
 );

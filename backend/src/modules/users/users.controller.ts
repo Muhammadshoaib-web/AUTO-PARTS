@@ -29,7 +29,7 @@ export class UsersController {
   @Post()
   @ApiOperation({ summary: 'Create user (admin only)' })
   create(@Body() dto: CreateUserDto, @CurrentUser() user: any) {
-    return this.svc.create(dto, resolveShopId(user, dto));
+    return this.svc.create(dto, resolveShopId(user, dto), user?.id);
   }
 
   @Get()
@@ -61,8 +61,8 @@ export class UsersController {
 
   @Patch(':id/reset-password')
   @ApiOperation({ summary: 'Admin resets a user password' })
-  resetPassword(@Param('id') id: string, @Body() dto: ResetPasswordDto) {
-    return this.svc.resetPassword(id, dto.newPassword);
+  resetPassword(@Param('id') id: string, @Body() dto: ResetPasswordDto, @CurrentUser() requester: { id: string }) {
+    return this.svc.resetPassword(id, dto.newPassword, requester?.id);
   }
 
   @Patch(':id/toggle-status')

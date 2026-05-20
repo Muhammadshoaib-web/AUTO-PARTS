@@ -7,9 +7,10 @@ import { SalesController } from './sales.controller';
 import { StockModule } from '../stock/stock.module';
 import { CustomersModule } from '../customers/customers.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Sale, SaleItem]), StockModule, CustomersModule, LedgerModule],
+  imports: [TypeOrmModule.forFeature([Sale, SaleItem]), StockModule, CustomersModule, LedgerModule, AuditModule],
   controllers: [SalesController],
   providers: [SalesService],
   exports: [SalesService],

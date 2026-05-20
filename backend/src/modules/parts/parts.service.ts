@@ -5,22 +5,33 @@ import { Part } from './entities/part.entity';
 import { CreatePartDto } from './dto/create-part.dto';
 import { UpdatePartDto } from './dto/update-part.dto';
 import { FilterPartsDto } from './dto/filter-parts.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class PartsService {
   constructor(
     @InjectRepository(Part)
     private readonly repo: Repository<Part>,
+    private readonly auditService: AuditService,
   ) {}
 
-  async create(dto: CreatePartDto, shopId?: string | null): Promise<Part> {
+  async create(dto: CreatePartDto, shopId?: string | null, requesterId?: string): Promise<Part> {
     const existing = await this.repo.findOne({ where: { partNumber: dto.partNumber, ...(shopId ? { shopId } : {}) } });
     if (existing) throw new ConflictException(`Part number "${dto.partNumber}" already exists.`);
     if (dto.barcode) {
       const barcodeExists = await this.repo.findOne({ where: { barcode: dto.barcode, ...(shopId ? { shopId } : {}) } });
       if (barcodeExists) throw new ConflictException(`Barcode "${dto.barcode}" is already in use.`);
     }
-    return this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null }));
+    const part = await this.repo.save(this.repo.create({ ...dto, shopId: shopId ?? null }));
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: shopId ?? null,
+      action: 'CREATE',
+      resourceType: 'part',
+      resourceId: part.id,
+      newData: { partNumber: part.partNumber, nameEn: part.nameEn },
+    });
+    return part;
   }
 
   async findAll(filter: FilterPartsDto, shopId?: string | null) {
@@ -67,8 +78,9 @@ export class PartsService {
     return this.repo.findOne({ where: { barcode, ...(shopId ? { shopId } : {}) } });
   }
 
-  async update(id: string, dto: UpdatePartDto, shopId?: string | null): Promise<Part> {
+  async update(id: string, dto: UpdatePartDto, shopId?: string | null, requesterId?: string): Promise<Part> {
     const part = await this.findOne(id, shopId);
+    const oldData = { partNumber: part.partNumber, nameEn: part.nameEn };
     if (dto.partNumber && dto.partNumber !== part.partNumber) {
       const conflict = await this.repo.findOne({ where: { partNumber: dto.partNumber, ...(shopId ? { shopId } : {}) } });
       if (conflict) throw new ConflictException(`Part number "${dto.partNumber}" already exists.`);
@@ -78,7 +90,17 @@ export class PartsService {
       if (conflict) throw new ConflictException(`Barcode "${dto.barcode}" is already in use.`);
     }
     Object.assign(part, dto);
-    return this.repo.save(part);
+    const saved = await this.repo.save(part);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: shopId ?? null,
+      action: 'UPDATE',
+      resourceType: 'part',
+      resourceId: id,
+      oldData,
+      newData: { partNumber: saved.partNumber, nameEn: saved.nameEn },
+    });
+    return saved;
   }
 
   async updateImage(id: string, imagePath: string, shopId?: string | null): Promise<Part> {
@@ -87,11 +109,20 @@ export class PartsService {
     return this.repo.save(part);
   }
 
-  async remove(id: string, shopId?: string | null): Promise<{ message: string }> {
+  async remove(id: string, shopId?: string | null, requesterId?: string): Promise<{ message: string }> {
     const part = await this.findOne(id, shopId);
+    const name = part.nameEn;
     part.isActive = false;
     await this.repo.save(part);
-    return { message: `Part "${part.nameEn}" deleted.` };
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: shopId ?? null,
+      action: 'DELETE',
+      resourceType: 'part',
+      resourceId: id,
+      oldData: { partNumber: part.partNumber, nameEn: name },
+    });
+    return { message: `Part "${name}" deleted.` };
   }
 
   async findLowStock(shopId?: string | null): Promise<Part[]> {

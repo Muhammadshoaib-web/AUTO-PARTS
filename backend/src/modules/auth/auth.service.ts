@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { AuditService } from '../audit/audit.service';
 import { User } from '../users/entities/user.entity';
 import type { JwtPayload } from './strategies/jwt.strategy';
 
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly auditService: AuditService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -30,10 +32,19 @@ export class AuthService {
     return valid ? user : null;
   }
 
-  async login(user: User): Promise<AuthTokens> {
+  async login(user: User, ipAddress?: string): Promise<AuthTokens> {
     const tokens = await this.generateTokens(user);
     const hash = await bcrypt.hash(tokens.refreshToken, 10);
     await this.usersService.saveRefreshTokenHash(user.id, hash);
+    void this.auditService.log({
+      userId: user.id,
+      shopId: user.shopId ?? null,
+      action: 'LOGIN',
+      resourceType: 'user',
+      resourceId: user.id,
+      newData: { email: user.email, role: user.role },
+      ipAddress,
+    });
     return tokens;
   }
 
@@ -53,8 +64,15 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(userId: string): Promise<void> {
+  async logout(userId: string, ipAddress?: string): Promise<void> {
     await this.usersService.saveRefreshTokenHash(userId, null);
+    void this.auditService.log({
+      userId,
+      action: 'LOGOUT',
+      resourceType: 'user',
+      resourceId: userId,
+      ipAddress,
+    });
   }
 
   async changePassword(

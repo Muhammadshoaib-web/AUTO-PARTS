@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Menu, GitBranch } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Toaster } from '@/components/ui/Toaster';
@@ -10,13 +11,47 @@ import { api } from '@/lib/api/client';
 
 interface Branch { id: string; name: string; }
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+const ADMIN_ROLES = ['super_admin', 'admin'];
+
+function Spinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  // ready = Zustand hydrated + access token refreshed (if needed)
+  const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const { user } = useAuthStore();
   const { activeBranchId, setActiveBranchId } = useBranchStore();
   const [branches, setBranches] = useState<Branch[]>([]);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const { accessToken, refreshToken, refreshTokens, logout } = useAuthStore.getState();
+    if (accessToken) {
+      // Token already in memory (same-session navigation)
+      setReady(true);
+    } else if (refreshToken) {
+      // Page was refreshed — accessToken lost from memory, restore it silently
+      refreshTokens()
+        .catch(() => logout())
+        .finally(() => setReady(true));
+    } else {
+      // No session at all
+      setReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (ready && !user) {
+      router.replace(`/login?from=${encodeURIComponent(pathname)}`);
+    }
+  }, [ready, user, router, pathname]);
 
   const isAdmin = ADMIN_ROLES.includes(user?.role ?? '');
 
@@ -25,6 +60,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       api.get('/v1/branches').then((r) => setBranches((r.data as any).data ?? [])).catch(() => {});
     }
   }, [isAdmin]);
+
+  if (!ready || !user) return <Spinner />;
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -55,7 +92,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           <span className="font-semibold text-gray-900 lg:hidden">AutoParts IMS</span>
 
-          {/* Branch selector — only for admins with multiple branches */}
           {isAdmin && branches.length > 0 && (
             <div className="ml-auto flex items-center gap-2">
               <GitBranch size={15} className="text-gray-400" />

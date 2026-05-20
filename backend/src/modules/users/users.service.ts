@@ -10,20 +10,31 @@ import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly repo: Repository<User>,
+    private readonly auditService: AuditService,
   ) {}
 
-  async create(dto: CreateUserDto, shopId?: string | null): Promise<User> {
+  async create(dto: CreateUserDto, shopId?: string | null, requesterId?: string): Promise<User> {
     const existing = await this.repo.findOne({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already in use.');
     const hashed = await bcrypt.hash(dto.password, 12);
     const user = await this.repo.save(this.repo.create({ ...dto, password: hashed, shopId: shopId ?? null }));
-    return this.sanitize(user);
+    const result = this.sanitize(user);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: shopId ?? null,
+      action: 'CREATE',
+      resourceType: 'user',
+      resourceId: result.id,
+      newData: { email: result.email, role: result.role, name: result.name },
+    });
+    return result;
   }
 
   async findAll(shopId?: string | null, q?: string, page = 1, limit = 50) {
@@ -53,6 +64,7 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto, requesterId?: string): Promise<User> {
     const user = await this.findOne(id);
+    const oldData = { email: user.email, role: user.role, name: user.name };
 
     if (dto.email && dto.email !== user.email) {
       const conflict = await this.repo.findOne({ where: { email: dto.email } });
@@ -64,16 +76,33 @@ export class UsersService {
     }
     Object.assign(user, dto);
     const saved = await this.repo.save(user);
-    return this.sanitize(saved);
+    const result = this.sanitize(saved);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: user.shopId ?? null,
+      action: 'UPDATE',
+      resourceType: 'user',
+      resourceId: id,
+      oldData,
+      newData: { email: result.email, role: result.role, name: result.name },
+    });
+    return result;
   }
 
-  async resetPassword(id: string, newPassword: string): Promise<{ message: string }> {
+  async resetPassword(id: string, newPassword: string, requesterId?: string): Promise<{ message: string }> {
     if (newPassword.length < 8) {
       throw new UnprocessableEntityException('Password must be at least 8 characters.');
     }
     const user = await this.findOne(id);
     user.password = await bcrypt.hash(newPassword, 12);
     await this.repo.save(user);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: user.shopId ?? null,
+      action: 'RESET_PASSWORD',
+      resourceType: 'user',
+      resourceId: id,
+    });
     return { message: 'Password reset successfully.' };
   }
 
@@ -82,8 +111,18 @@ export class UsersService {
     if (requesterId && user.id === requesterId) {
       throw new UnprocessableEntityException('You cannot deactivate your own account.');
     }
+    const oldStatus = user.isActive;
     user.isActive = !user.isActive;
     const saved = await this.repo.save(user);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: user.shopId ?? null,
+      action: user.isActive ? 'ACTIVATE' : 'DEACTIVATE',
+      resourceType: 'user',
+      resourceId: id,
+      oldData: { isActive: oldStatus },
+      newData: { isActive: user.isActive },
+    });
     return this.sanitize(saved);
   }
 
@@ -94,6 +133,14 @@ export class UsersService {
     }
     user.isActive = false;
     await this.repo.save(user);
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: user.shopId ?? null,
+      action: 'DELETE',
+      resourceType: 'user',
+      resourceId: id,
+      oldData: { email: user.email, role: user.role },
+    });
     return { message: 'User deactivated.' };
   }
 

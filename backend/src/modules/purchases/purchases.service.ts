@@ -8,6 +8,7 @@ import { PurchaseItem } from './entities/purchase-item.entity';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { StockService } from '../stock/stock.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { AuditService } from '../audit/audit.service';
 import { PurchaseStatus } from '@autoparts/shared-types';
 import { generateInvoiceNumber } from '@autoparts/utils';
 
@@ -18,6 +19,7 @@ export class PurchasesService {
     @InjectRepository(PurchaseItem) private readonly itemRepo: Repository<PurchaseItem>,
     private readonly stockService: StockService,
     private readonly ledgerService: LedgerService,
+    private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -67,6 +69,15 @@ export class PurchasesService {
         await this.ledgerService.recordCreditPurchase(dto.supplierId, unpaid, result.id);
       }
     }
+
+    void this.auditService.log({
+      userId: createdById,
+      shopId: shopId ?? null,
+      action: 'CREATE',
+      resourceType: 'purchase',
+      resourceId: result.id,
+      newData: { invoiceNo: result.invoiceNo, netTotal: result.netTotal, status: result.status },
+    });
 
     return result;
   }
@@ -129,10 +140,22 @@ export class PurchasesService {
     }
 
     purchase.status = PurchaseStatus.RECEIVED;
-    return this.repo.save(purchase);
+    const saved = await this.repo.save(purchase);
+
+    void this.auditService.log({
+      userId,
+      shopId: purchase.shopId ?? null,
+      action: 'RECEIVE',
+      resourceType: 'purchase',
+      resourceId: id,
+      oldData: { status: PurchaseStatus.PENDING },
+      newData: { status: PurchaseStatus.RECEIVED },
+    });
+
+    return saved;
   }
 
-  async cancel(id: string): Promise<Purchase> {
+  async cancel(id: string, requesterId?: string): Promise<Purchase> {
     const purchase = await this.findOne(id);
 
     if (purchase.status === PurchaseStatus.RECEIVED) {
@@ -142,7 +165,20 @@ export class PurchasesService {
       throw new UnprocessableEntityException('Purchase is already cancelled.');
     }
 
+    const oldStatus = purchase.status;
     purchase.status = PurchaseStatus.CANCELLED;
-    return this.repo.save(purchase);
+    const saved = await this.repo.save(purchase);
+
+    void this.auditService.log({
+      userId: requesterId,
+      shopId: purchase.shopId ?? null,
+      action: 'CANCEL',
+      resourceType: 'purchase',
+      resourceId: id,
+      oldData: { status: oldStatus },
+      newData: { status: PurchaseStatus.CANCELLED },
+    });
+
+    return saved;
   }
 }

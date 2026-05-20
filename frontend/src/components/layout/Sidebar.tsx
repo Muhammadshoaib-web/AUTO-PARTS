@@ -11,7 +11,7 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api/client';
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+const ADMIN_ROLES = ['super_admin', 'admin'];
 
 const buildNav = (role: string) => [
   {
@@ -54,9 +54,9 @@ const buildNav = (role: string) => [
     items: [
       { href: '/reports', label: 'Reports', icon: BarChart3 },
       ...(ADMIN_ROLES.includes(role) ? [{ href: '/branches', label: 'Branches', icon: GitBranch }] : []),
-      ...(role === 'SUPER_ADMIN' ? [{ href: '/shops', label: 'Shops', icon: Store }] : []),
+      ...(role === 'super_admin' ? [{ href: '/shops', label: 'Shops', icon: Store }] : []),
       { href: '/users', label: 'Users', icon: Users },
-      { href: '/audit', label: 'Audit Logs', icon: Shield },
+      ...(role === 'super_admin' ? [{ href: '/audit', label: 'Audit Logs', icon: Shield }] : []),
     ],
   },
 ];
