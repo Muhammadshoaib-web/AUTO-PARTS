@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, GitBranch } from 'lucide-react';
+import { Menu, GitBranch, ChevronLeft } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Toaster } from '@/components/ui/Toaster';
 import { useAuthStore } from '@/store/auth.store';
@@ -22,9 +22,9 @@ function Spinner() {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // ready = Zustand hydrated + access token refreshed (if needed)
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuthStore();
   const { activeBranchId, setActiveBranchId } = useBranchStore();
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -34,15 +34,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const { accessToken, refreshToken, refreshTokens, logout } = useAuthStore.getState();
     if (accessToken) {
-      // Token already in memory (same-session navigation)
       setReady(true);
     } else if (refreshToken) {
-      // Page was refreshed — accessToken lost from memory, restore it silently
       refreshTokens()
         .catch(() => logout())
         .finally(() => setReady(true));
     } else {
-      // No session at all
       setReady(true);
     }
   }, []);
@@ -52,6 +49,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
     }
   }, [ready, user, router, pathname]);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   const isAdmin = ADMIN_ROLES.includes(user?.role ?? '');
 
@@ -65,31 +67,57 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
-        <Sidebar />
+
+      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
+      <div className="hidden lg:flex flex-shrink-0">
+        <Sidebar collapsed={collapsed} />
       </div>
 
-      {/* Mobile sidebar overlay */}
-      {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <div className="relative z-10">
-            <Sidebar onClose={() => setOpen(false)} />
-          </div>
+      {/* ── Mobile sidebar overlay ──────────────────────────────────── */}
+      {/* Always in DOM so the slide transition works */}
+      <div
+        className={`fixed inset-0 z-50 lg:hidden transition-opacity duration-300 ${
+          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Backdrop */}
+        <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+        {/* Panel slides in from the left */}
+        <div
+          className={`relative z-10 h-full transition-transform duration-300 ease-in-out ${
+            open ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <Sidebar onClose={() => setOpen(false)} />
         </div>
-      )}
+      </div>
 
-      {/* Main content */}
+      {/* ── Main content ────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
         {/* Top bar */}
-        <header className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200">
+        <header className="flex items-center gap-3 px-4 bg-white border-b border-gray-200 h-[57px] flex-shrink-0">
+
+          {/* Mobile: open drawer */}
           <button
             onClick={() => setOpen(true)}
             className="p-1 rounded-md text-gray-500 hover:text-gray-700 lg:hidden"
+            aria-label="Open menu"
           >
             <Menu size={22} />
           </button>
+
+          {/* Desktop: collapse / expand sidebar */}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className={`hidden lg:flex items-center justify-center p-1 rounded-md text-gray-500 hover:text-gray-700 transition-transform duration-300 ${
+              collapsed ? 'rotate-180' : ''
+            }`}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <ChevronLeft size={22} />
+          </button>
+
           <span className="font-semibold text-gray-900 lg:hidden">AutoParts IMS</span>
 
           {isAdmin && branches.length > 0 && (
