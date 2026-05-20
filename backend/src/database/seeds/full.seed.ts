@@ -428,6 +428,9 @@ export async function runFullSeed(ds: DataSource): Promise<void> {
       status: SaleStatus.COMPLETED,
     }));
 
+    // Backdate createdAt so reports trend chart shows historical spread
+    await ds.query(`UPDATE sales SET "createdAt" = $1 WHERE id = $2`, [days(data.daysAgo), sale.id]);
+
     for (let i = 0; i < data.items.length; i++) {
       await saleItemRepo.save({ ...saleItems[i], saleId: sale.id });
       // deduct stock
@@ -510,7 +513,32 @@ export async function runFullSeed(ds: DataSource): Promise<void> {
       { partId: pA7.id, locationId: locA_ShB.id, quantity: 15, unitPrice: 650 },
     ],
   });
-  console.log('  ✓ Sales (9 invoices for Shop A)');
+  // Extra daily sales to populate the 30-day trend chart (Shop A)
+  const trendSales: Array<{ inv: string; daysAgo: number; items: Array<{ partId: string; locationId: string; quantity: number; unitPrice: number }> }> = [
+    { inv: 'INV-TREND-001', daysAgo: 29, items: [{ partId: pA1.id, locationId: locA_ShA.id, quantity: 4, unitPrice: 280 }, { partId: pA7.id, locationId: locA_ShB.id, quantity: 6, unitPrice: 650 }] },
+    { inv: 'INV-TREND-002', daysAgo: 28, items: [{ partId: pA3.id, locationId: locA_ShB.id, quantity: 10, unitPrice: 160 }, { partId: pA2.id, locationId: locA_ShA.id, quantity: 3, unitPrice: 380 }] },
+    { inv: 'INV-TREND-003', daysAgo: 27, items: [{ partId: pA4.id, locationId: locA_ShA.id, quantity: 2, unitPrice: 1500 }] },
+    { inv: 'INV-TREND-004', daysAgo: 26, items: [{ partId: pA7.id, locationId: locA_ShB.id, quantity: 8, unitPrice: 650 }, { partId: pA9.id, locationId: locA_ShB.id, quantity: 5, unitPrice: 480 }] },
+    { inv: 'INV-TREND-005', daysAgo: 25, items: [{ partId: pA1.id, locationId: locA_ShA.id, quantity: 6, unitPrice: 280 }, { partId: pA3.id, locationId: locA_ShB.id, quantity: 15, unitPrice: 160 }] },
+    { inv: 'INV-TREND-006', daysAgo: 24, items: [{ partId: pA8.id, locationId: locA_ShB.id, quantity: 3, unitPrice: 850 }, { partId: pA2.id, locationId: locA_ShA.id, quantity: 2, unitPrice: 380 }] },
+    { inv: 'INV-TREND-007', daysAgo: 23, items: [{ partId: pA5.id, locationId: locA_ShA.id, quantity: 1, unitPrice: 4500 }, { partId: pA7.id, locationId: locA_ShB.id, quantity: 10, unitPrice: 650 }] },
+    { inv: 'INV-TREND-008', daysAgo: 22, items: [{ partId: pA3.id, locationId: locA_ShB.id, quantity: 12, unitPrice: 160 }, { partId: pA1.id, locationId: locA_ShA.id, quantity: 5, unitPrice: 280 }] },
+    { inv: 'INV-TREND-009', daysAgo: 21, items: [{ partId: pA4.id, locationId: locA_ShA.id, quantity: 3, unitPrice: 1500 }, { partId: pA9.id, locationId: locA_ShB.id, quantity: 8, unitPrice: 480 }] },
+    { inv: 'INV-TREND-010', daysAgo: 19, items: [{ partId: pA7.id, locationId: locA_ShB.id, quantity: 12, unitPrice: 650 }, { partId: pA2.id, locationId: locA_ShA.id, quantity: 4, unitPrice: 380 }] },
+    { inv: 'INV-TREND-011', daysAgo: 18, items: [{ partId: pA1.id, locationId: locA_ShA.id, quantity: 7, unitPrice: 280 }, { partId: pA3.id, locationId: locA_ShB.id, quantity: 6, unitPrice: 160 }] },
+    { inv: 'INV-TREND-012', daysAgo: 17, items: [{ partId: pA8.id, locationId: locA_ShB.id, quantity: 4, unitPrice: 850 }] },
+    { inv: 'INV-TREND-013', daysAgo: 16, items: [{ partId: pA9.id, locationId: locA_ShB.id, quantity: 10, unitPrice: 480 }, { partId: pA7.id, locationId: locA_ShB.id, quantity: 5, unitPrice: 650 }] },
+    { inv: 'INV-TREND-014', daysAgo: 12, items: [{ partId: pA3.id, locationId: locA_ShB.id, quantity: 18, unitPrice: 160 }, { partId: pA1.id, locationId: locA_ShA.id, quantity: 4, unitPrice: 280 }] },
+    { inv: 'INV-TREND-015', daysAgo: 11, items: [{ partId: pA4.id, locationId: locA_ShA.id, quantity: 2, unitPrice: 1500 }, { partId: pA2.id, locationId: locA_ShA.id, quantity: 5, unitPrice: 380 }] },
+    { inv: 'INV-TREND-016', daysAgo: 9,  items: [{ partId: pA7.id, locationId: locA_ShB.id, quantity: 9, unitPrice: 650 }, { partId: pA9.id, locationId: locA_ShB.id, quantity: 6, unitPrice: 480 }] },
+    { inv: 'INV-TREND-017', daysAgo: 8,  items: [{ partId: pA1.id, locationId: locA_ShA.id, quantity: 8, unitPrice: 280 }, { partId: pA3.id, locationId: locA_ShB.id, quantity: 10, unitPrice: 160 }] },
+    { inv: 'INV-TREND-018', daysAgo: 6,  items: [{ partId: pA5.id, locationId: locA_ShA.id, quantity: 2, unitPrice: 4500 }] },
+    { inv: 'INV-TREND-019', daysAgo: 3,  items: [{ partId: pA4.id, locationId: locA_ShA.id, quantity: 2, unitPrice: 1500 }, { partId: pA7.id, locationId: locA_ShB.id, quantity: 7, unitPrice: 650 }] },
+  ];
+  for (const t of trendSales) {
+    await makeSale({ invoiceNo: t.inv, shopId: shopA.id, branchId: branchA1.id, createdById: cashierA.id, paymentMethod: PaymentMethod.CASH, daysAgo: t.daysAgo, items: t.items });
+  }
+  console.log('  ✓ Sales (9 core + 19 trend invoices for Shop A)');
 
   // Shop B — 2 sales
   await makeSale({ invoiceNo: 'INV-SEED-0010', shopId: shopB.id, branchId: branchB1.id, createdById: cashierB.id, customerId: cusB1.id, paymentMethod: PaymentMethod.CASH, daysAgo: 5,
