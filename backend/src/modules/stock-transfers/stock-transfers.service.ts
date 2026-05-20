@@ -16,7 +16,7 @@ export class StockTransfersService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async transfer(dto: CreateStockTransferDto, createdById?: string): Promise<StockMovement> {
+  async transfer(dto: CreateStockTransferDto, shopId?: string | null, createdById?: string): Promise<StockMovement> {
     if (dto.fromLocationId === dto.toLocationId) {
       throw new UnprocessableEntityException('Source and destination locations must be different.');
     }
@@ -45,7 +45,12 @@ export class StockTransfersService {
         where: { partId: dto.partId, locationId: dto.toLocationId },
       });
       if (!toStock) {
-        toStock = manager.create(Stock, { partId: dto.partId, locationId: dto.toLocationId, quantity: 0 });
+        toStock = manager.create(Stock, {
+          partId: dto.partId,
+          locationId: dto.toLocationId,
+          quantity: 0,
+          shopId: shopId ?? null,
+        });
       }
       toStock.quantity += dto.quantity;
       await manager.save(toStock);
@@ -57,6 +62,7 @@ export class StockTransfersService {
           toLocationId: dto.toLocationId,
           quantity: dto.quantity,
           type: StockMovementType.TRANSFER,
+          shopId: shopId ?? null,
           notes: dto.notes ?? `Transfer: ${fromLoc.name} → ${toLoc.name}`,
           createdById: createdById ?? null,
         }),
@@ -64,7 +70,7 @@ export class StockTransfersService {
     });
   }
 
-  async findAll(page = 1, limit = 20, branchId?: string) {
+  async findAll(shopId?: string | null, page = 1, limit = 20, branchId?: string) {
     const qb = this.movementRepo
       .createQueryBuilder('m')
       .leftJoinAndSelect('m.part', 'part')
@@ -76,6 +82,7 @@ export class StockTransfersService {
       .skip((page - 1) * limit)
       .take(limit);
 
+    if (shopId) qb.andWhere('m.shopId = :shopId', { shopId });
     if (branchId) {
       qb.andWhere(
         '(fromLocation.branchId = :branchId OR toLocation.branchId = :branchId)',

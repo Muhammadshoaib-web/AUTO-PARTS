@@ -25,6 +25,11 @@ export class CreateUserDto {
   @IsEnum(UserRole)
   role?: UserRole;
 
+  @ApiPropertyOptional({ description: 'Assign to a shop — SUPER_ADMIN only; ignored for other roles' })
+  @IsOptional()
+  @IsUUID()
+  shopId?: string | null;
+
   @ApiPropertyOptional({ description: 'Assign to a branch — leave null for admin-level users' })
   @IsOptional()
   @IsUUID()

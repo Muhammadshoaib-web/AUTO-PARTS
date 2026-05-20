@@ -13,7 +13,7 @@ export class StockTransfersController {
   @Post()
   @ApiOperation({ summary: 'Transfer stock between locations' })
   transfer(@Body() dto: CreateStockTransferDto, @CurrentUser() user: any) {
-    return this.svc.transfer(dto, user?.id);
+    return this.svc.transfer(dto, user?.shopId, user?.id);
   }
 
   @Get()
@@ -25,6 +25,6 @@ export class StockTransfersController {
     @Query('branchId') branchId?: string,
   ) {
     const effectiveBranchId: string | undefined = user?.branchId ?? branchId;
-    return this.svc.findAll(page ? +page : 1, limit ? +limit : 20, effectiveBranchId);
+    return this.svc.findAll(user?.shopId, page ? +page : 1, limit ? +limit : 20, effectiveBranchId);
   }
 }

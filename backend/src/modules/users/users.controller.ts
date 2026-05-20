@@ -11,6 +11,14 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+/** Resolve which shopId to stamp on a new user.
+ *  SUPER_ADMIN can specify any shopId via dto.shopId.
+ *  All other roles are always locked to their own shopId. */
+function resolveShopId(creator: any, dto: CreateUserDto): string | null {
+  if (creator?.role === UserRole.SUPER_ADMIN) return dto.shopId ?? null;
+  return creator?.shopId ?? null;
+}
+
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
 @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
@@ -21,7 +29,7 @@ export class UsersController {
   @Post()
   @ApiOperation({ summary: 'Create user (admin only)' })
   create(@Body() dto: CreateUserDto, @CurrentUser() user: any) {
-    return this.svc.create(dto, user?.shopId);
+    return this.svc.create(dto, resolveShopId(user, dto));
   }
 
   @Get()
